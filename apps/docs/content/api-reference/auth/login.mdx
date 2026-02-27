@@ -1,0 +1,105 @@
+---
+title: Login
+description: Authenticate with email and password
+---
+
+Login with registered email and password. Returns access and refresh tokens.
+
+<EndpointBadge method="POST" path="/api/v1/auth/login" auth={false} />
+
+## Request Body
+
+```json
+{
+  "email": "string",
+  "password": "string"
+}
+```
+
+## Parameters
+
+| Field      | Type   | Required | Description              |
+| ---------- | ------ | -------- | ------------------------ |
+| `email`    | string | Yes      | Registered email address |
+| `password` | string | Yes      | User's password          |
+
+## Response
+
+Returns `200 OK` on success.
+
+```json
+{
+  "message": "Login successful",
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "user"
+  }
+}
+```
+
+The refresh token is automatically set as an HTTP-only cookie.
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/auth/login \\
+  -H "Content-Type: application/json" \\
+  -john@example.com","d '{"email":"password":"Password123!"}'`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'john@example.com',
+    password: 'Password123!'
+  })
+});
+const { accessToken, user } = await response.json();`,
+    python: `import requests
+
+response = requests.post(
+'http://localhost:5000/api/v1/auth/login',
+json={
+'email': 'john@example.com',
+'password': 'Password123!'
+}
+)
+data = response.json()
+access_token = data['access_token']`,
+    typescript: `interface LoginRequest {
+email: string;
+password: string;
+}
+
+interface LoginResponse {
+message: string;
+accessToken: string;
+user: {
+id: string;
+name: string;
+email: string;
+role: string;
+};
+}
+
+const login = async (data: LoginRequest): Promise<LoginResponse> => {
+const response = await fetch('/api/v1/auth/login', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(data)
+});
+return response.json();
+};`,
+}}
+/>
+
+## Error Responses
+
+| Status | Message           |
+| ------ | ----------------- |
+| 400    | Validation failed |
+| 404    | User not found    |
+| 401    | Invalid password  |

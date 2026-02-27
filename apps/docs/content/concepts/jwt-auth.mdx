@@ -1,0 +1,176 @@
+---
+title: JWT Authentication
+description: Deep dive into JWT token system
+---
+
+Realty CRM uses JSON Web Tokens (JWT) for authentication. This document explains how the token system works.
+
+## Token Types
+
+### Access Token
+
+The access token is used to authenticate API requests. It has a short lifetime for security.
+
+| Property  | Value                             |
+| --------- | --------------------------------- |
+| Lifetime  | 30 minutes                        |
+| Algorithm | HS256                             |
+| Storage   | Client-side (memory/localStorage) |
+
+**Payload structure:**
+
+```json
+{
+  "id": "user_id",
+  "role": "user",
+  "tokenVersion": 0,
+  "iat": 1704067200,
+  "exp": 1704069000
+}
+```
+
+### Refresh Token
+
+The refresh token is used to obtain new access tokens without re-authenticating.
+
+| Property  | Value                         |
+| --------- | ----------------------------- |
+| Lifetime  | 7 days                        |
+| Algorithm | HS256                         |
+| Storage   | HTTP-only cookie (server-set) |
+
+**Payload structure:**
+
+```json
+{
+  "id": "user_id",
+  "tokenVersion": 0,
+  "iat": 1704067200,
+  "exp": 1704672000
+}
+```
+
+## Token Flow
+
+### 1. Initial Authentication
+
+```
+User → [Login Request] → Server → Validate → Generate Tokens → Return to User
+```
+
+1. User submits credentials
+2. Server validates email/password
+3. Server generates access token + refresh token
+4. Access token returned in response body
+5. Refresh token set as HTTP-only cookie
+
+### 2. Authenticated Request
+
+```
+Client → [API Request + Access Token] → Server → Verify → Process → Response
+```
+
+1. Client includes access token in Authorization header
+2. Server verifies token signature and expiration
+3. If valid, process request
+4. If expired, return 401
+
+### 3. Token Refresh
+
+```
+Client → [Expired Token] → Server → 401 → Client → [Refresh Request] → Server → New Tokens
+```
+
+1. Client makes request with expired access token
+2. Server returns 401
+3. Client calls /auth/refresh (cookie sent automatically)
+4. Server validates refresh token
+5. Server issues new access token + refresh token
+
+## Token Invalidation
+
+Realty CRM uses a `tokenVersion` field in the user model for token invalidation:
+
+```
+User.logout() → Increment tokenVersion → All existing tokens invalid
+```
+
+This allows immediate revocation of all tokens without waiting for expiration.
+
+<Callout type="warning">
+  When a user logs out, ALL their tokens are invalidated immediately. They must
+  log in again to get new tokens.
+</Callout>
+
+## Security Best Practices
+
+1. **Store tokens securely** - Use HTTP-only cookies for refresh tokens
+2. **Don't expose tokens** - Never log or display tokens
+3. **Use HTTPS** - Always use secure connections in production
+4. **Rotate secrets** - Periodically rotate JWT secrets
+
+## Implementation Examples
+
+### Extract Access Token
+
+<CodeBlock
+  languages={{
+    javascript: `// From response body
+const { accessToken } = await response.json();
+
+// Store in memory
+localStorage.setItem('accessToken', accessToken);
+
+// Include in requests
+fetch('/api/endpoint', {
+headers: {
+'Authorization': \`Bearer \${accessToken}\`
+}
+});`,
+    python: `import requests
+
+# From response
+
+data = response.json()
+access_token = data['access_token']
+
+# Include in requests
+
+headers = {'Authorization': f'Bearer {access_token}'}
+requests.get('/api/endpoint', headers=headers)`,
+}}
+/>
+
+### Automatic Refresh
+
+<CodeBlock
+  languages={{
+    javascript: `// axios interceptor example
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response?.status === 401) {
+      // Call refresh endpoint
+      await axios.post('/api/v1/auth/refresh');
+      // Retry original request
+      return axios(error.config);
+    }
+    return Promise.reject(error);
+  }
+);`,
+    python: `# requests-toolbelt or similar
+from requests import Response
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# Configure retry strategy
+
+session = requests.Session()
+retry = Retry(
+total=3,
+backoff_factor=0.5,
+status_forcelist=[401]
+)
+session.mount('http://', HTTPAdapter(max_retries=retry))`,
+}}
+/>

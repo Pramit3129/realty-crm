@@ -1,0 +1,69 @@
+---
+title: Environment Variables
+description: Complete list of environment variables
+---
+
+All configuration is done through environment variables. Create a `.env` file in the `apps/api` directory.
+
+## Required Variables
+
+| Variable             | Type   | Description                           |
+| -------------------- | ------ | ------------------------------------- |
+| `MONGO_URI`          | string | MongoDB connection string             |
+| `JWT_ACCESS_SECRET`  | string | Secret key for signing access tokens  |
+| `JWT_REFRESH_SECRET` | string | Secret key for signing refresh tokens |
+
+## Optional Variables
+
+| Variable               | Type   | Default                                        | Description                          |
+| ---------------------- | ------ | ---------------------------------------------- | ------------------------------------ |
+| `NODE_ENV`             | string | `"development"`                                | Environment (development/production) |
+| `PORT`                 | number | `5000`                                         | Server port                          |
+| `APP_URL`              | string | `"http://localhost:5000"`                      | Application URL                      |
+| `GOOGLE_CLIENT_ID`     | string | -                                              | Google OAuth client ID               |
+| `GOOGLE_CLIENT_SECRET` | string | -                                              | Google OAuth client secret           |
+| `GOOGLE_REDIRECT_URI`  | string | `"http://localhost:5000/auth/google/callback"` | OAuth callback URL                   |
+
+## Generating Secrets
+
+Generate secure random secrets using OpenSSL:
+
+```bash
+openssl rand -hex 32
+```
+
+This produces a 64-character hexadecimal string suitable for JWT secrets.
+
+## Example .env File
+
+```bash
+NODE_ENV=development
+PORT=5000
+
+MONGO_URI=mongodb://localhost:27017/realty-crm
+
+JWT_ACCESS_SECRET=your_generated_access_secret
+JWT_REFRESH_SECRET=your_generated_refresh_secret
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:5000/auth/google/callback
+
+APP_URL=http://localhost:5000
+```
+
+## Google OAuth Setup
+
+To enable Google login:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project
+3. Enable the Google+ API / People API
+4. Create OAuth 2.0 credentials
+5. Set authorized redirect URIs to `http://localhost:5000/auth/google/callback`
+6. Add your credentials to `.env`
+
+<Callout type="warning">
+  In production, update `GOOGLE_REDIRECT_URI` and add it to Google Cloud
+  Console's authorized redirect URIs.
+</Callout>

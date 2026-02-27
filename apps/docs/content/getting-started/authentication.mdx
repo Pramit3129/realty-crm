@@ -1,0 +1,175 @@
+---
+title: Authentication
+description: Understanding the authentication system
+---
+
+Realty CRM uses JWT (JSON Web Tokens) for authentication. This guide explains how the auth system works.
+
+## Authentication Methods
+
+### 1. Email & Password
+
+Traditional registration and login with email and password.
+
+### 2. Google OAuth
+
+Social login using Google accounts.
+
+## Token System
+
+The API uses a dual-token system:
+
+### Access Token
+
+- **Purpose**: Authenticate API requests
+- **Lifetime**: 30 minutes
+- **Storage**: Client-side (memory, localStorage, etc.)
+- **Usage**: Include in `Authorization` header
+
+```http
+Authorization: Bearer <access_token>
+```
+
+### Refresh Token
+
+- **Purpose**: Obtain new access tokens
+- **Lifetime**: 7 days
+- **Storage**: HTTP-only cookie (secure, inaccessible to JavaScript)
+- **Usage**: Automatically sent with requests
+
+## Registration Flow
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/auth/register \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"John Doe","email":"john@example.com","password":"Password123!"}'`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/auth/register', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'John Doe',
+    email: 'john@example.com',
+    password: 'Password123!'
+  })
+});
+const { accessToken, user } = await response.json();`,
+    python: `import requests
+
+response = requests.post(
+'http://localhost:5000/api/v1/auth/register',
+json={
+'name': 'John Doe',
+'email': 'john@example.com',
+'password': 'Password123!'
+}
+)
+data = response.json()
+access_token = data['access_token']`,
+}}
+/>
+
+## Login Flow
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{"email":"john@example.com","password":"Password123!"}'`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'john@example.com',
+    password: 'Password123!'
+  })
+});
+const { accessToken, user } = await response.json();`,
+    python: `import requests
+
+response = requests.post(
+'http://localhost:5000/api/v1/auth/login',
+json={
+'email': 'john@example.com',
+'password': 'Password123!'
+}
+)
+data = response.json()
+access_token = data['access_token']`,
+}}
+/>
+
+## Making Authenticated Requests
+
+After login, use the access token to make authenticated requests:
+
+<CodeBlock
+  languages={{
+    curl: `curl http://localhost:5000/api/v1/user/me \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/user/me', {
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+});
+const { user } = await response.json();`,
+    python: `import requests
+
+response = requests.get(
+'http://localhost:5000/api/v1/user/me',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+)
+user = response.json()['user']`,
+}}
+/>
+
+## Token Refresh
+
+Access tokens expire after 30 minutes. The API automatically handles refresh when you make requests with an expired token:
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/auth/refresh`,
+    javascript: `// Token refresh happens automatically
+// The refresh token is stored in an HTTP-only cookie`,
+    python: `import requests
+
+# Token refresh happens automatically
+
+# The refresh token is stored in an HTTP-only cookie`,
+
+}}
+/>
+
+## Logout
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/auth/logout`,
+    javascript: `await fetch('http://localhost:5000/api/v1/auth/logout', {
+  method: 'POST'
+});`,
+    python: `requests.post('http://localhost:5000/api/v1/auth/logout')`,
+  }}
+/>
+
+<Callout type="warning" title="Token Invalidation">
+  When you logout, all existing tokens are invalidated. The user must log in
+  again to get new tokens.
+</Callout>
+
+## Password Requirements
+
+Passwords must meet the following criteria:
+
+- Minimum 6 characters
+- Maximum 32 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character
+
+<Callout type="info">
+  Password strength requirements are enforced during registration to ensure
+  account security.
+</Callout>

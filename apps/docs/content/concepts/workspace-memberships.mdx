@@ -1,0 +1,176 @@
+---
+title: Workspace & Memberships
+description: Managing workspaces and team collaboration
+---
+
+Realty CRM organizes work into workspaces with team members managed through memberships.
+
+## Concepts
+
+### Workspace
+
+A workspace is a container for related work. It can be:
+
+| Type   | Description                             |
+| ------ | --------------------------------------- |
+| `SOLO` | Single user, personal workspace         |
+| `TEAM` | Multiple users, collaborative workspace |
+
+### Membership
+
+A membership links a user to a workspace with a specific role:
+
+```
+User ←→ Membership ←→ Workspace
+```
+
+## Data Models
+
+### Workspace
+
+```typescript
+{
+  _id: ObjectId,
+  name: string,        // Workspace name
+  type: 'SOLO' | 'TEAM',
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Membership
+
+```typescript
+{
+  _id: ObjectId,
+  workspace: ObjectId,  // Reference to Workspace
+  user: ObjectId,       // Reference to User
+  role: 'OWNER' | 'AGENT',
+  isAccepted: boolean, // Invitation accepted
+  isRemoved: boolean,   // Soft deleted
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+## Workflows
+
+### Creating a Workspace
+
+```
+1. Authenticated user calls POST /workspace/create
+2. Server creates workspace record
+3. Server creates OWNER membership for creator
+4. Returns workspace object
+```
+
+### Adding Team Members
+
+```
+1. Owner calls POST /memberships/add-members
+2. Server creates membership records for each user
+3. Members added with isAccepted: false
+4. Members receive notification (external)
+5. Members accept invitation via PATCH /memberships/:id
+```
+
+### Accepting Invitation
+
+```
+1. User calls PATCH /memberships/:id
+2. Sets isAccepted: true
+3. Now has access to workspace
+```
+
+## Example: Team Collaboration
+
+### 1. Create Workspace
+
+<CodeBlock
+  languages={{
+    javascript: `// Create a team workspace
+const workspace = await createWorkspace('Acme Real Estate');
+console.log(workspace.type); // 'SOLO' (default)`,
+    python: `# Create a team workspace
+workspace = create_workspace('Acme Real Estate')
+print(workspace['type'])  # 'SOLO' (default)`,
+  }}
+/>
+
+### 2. Add Team Members
+
+<CodeBlock
+  languages={{
+    javascript: `// Add agents to workspace
+const result = await addMembers(workspaceId, [
+  'user_id_1',
+  'user_id_2',
+  'user_id_3'
+]);`,
+    python: `# Add agents to workspace
+result = add_members(workspace_id, [
+    'user_id_1',
+    'user_id_2',
+    'user_id_3'
+])`,
+  }}
+/>
+
+### 3. List Workspace Members
+
+<CodeBlock
+  languages={{
+    javascript: `// Get all workspace members
+const members = await getWorkspaceMembers(workspaceId);
+members.forEach(m => console.log(m.user.name, m.role));`,
+    python: `# Get all workspace members
+members = get_workspace_members(workspace_id)
+for m in members:
+    print(m['user']['name'], m['role'])`,
+  }}
+/>
+
+### 4. Accept Invitation
+
+<CodeBlock
+  languages={{
+    javascript: `// Accept workspace invitation
+const membership = await updateMembership(membershipId, {
+  isAccepted: true
+});`,
+    python: `# Accept workspace invitation
+membership = update_membership(membership_id, {
+    'isAccepted': True
+})`,
+  }}
+/>
+
+## Invitation Flow
+
+1. **Owner adds members** → Memberships created with `isAccepted: false`
+2. **Notification sent** → Your app handles notification (email, push, etc.)
+3. **Member accepts** → Calls PATCH to set `isAccepted: true`
+4. **Access granted** → Member can now access workspace resources
+
+<Callout type="info">
+  The invitation/notification system is not built into the API. You need to
+  implement notification delivery (email, push, etc.) in your frontend
+  application.
+</Callout>
+
+## Removing Members
+
+Members can be removed (soft delete):
+
+```javascript
+await removeMember(membershipId);
+```
+
+This sets `isRemoved: true`, hiding them from the workspace member list. The membership can be re-added later if needed.
+
+## Best Practices
+
+1. **Clear workspace names** - Use descriptive names for easy identification
+2. **Role assignment** - Assign OWNER to team leads, AGENT to regular members
+3. **Acceptance tracking** - Track pending invitations for cleanup
+4. **Soft deletes** - Use soft delete to preserve history

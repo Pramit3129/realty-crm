@@ -1,0 +1,123 @@
+---
+title: Add Members
+description: Add users to a workspace
+---
+
+Add one or more users to a workspace as members.
+
+<EndpointBadge
+  method="POST"
+  path="/api/v1/memberships/add-members"
+  auth={true}
+/>
+
+## Request Headers
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## Request Body
+
+```json
+{
+  "workspaceId": "string",
+  "users": ["user_id_1", "user_id_2"]
+}
+```
+
+## Parameters
+
+| Field         | Type     | Required | Description                      |
+| ------------- | -------- | -------- | -------------------------------- |
+| `workspaceId` | string   | Yes      | ID of the workspace              |
+| `users`       | string[] | Yes      | Array of user IDs to add (min 1) |
+
+## Response
+
+Returns `201 Created` on success.
+
+```json
+{
+  "message": "Members added successfully",
+  "memberships": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "workspace": "507f1f77bcf86cd799439012",
+      "user": {
+        "name": "Jane Doe",
+        "email": "jane@example.com"
+      },
+      "role": "AGENT",
+      "isAccepted": false,
+      "isRemoved": false,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+New members are added with `isAccepted: false` and must accept the invitation.
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/memberships/add-members \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"workspaceId":"507f1f77bcf86cd799439012","users":["507f1f77bcf86cd799439013"]}'`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/memberships/add-members', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    workspaceId: '507f1f77bcf86cd799439012',
+    users: ['507f1f77bcf86cd799439013']
+  })
+});
+const data = await response.json();`,
+    python: `import requests
+
+response = requests.post(
+'http://localhost:5000/api/v1/memberships/add-members',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'},
+json={
+'workspaceId': '507f1f77bcf86cd799439012',
+'users': ['507f1f77bcf86cd799439013']
+}
+)
+data = response.json()`,
+    typescript: `interface Membership {
+\_id: string;
+workspace: string;
+user: { name: string; email: string };
+role: 'OWNER' | 'AGENT';
+isAccepted: boolean;
+isRemoved: boolean;
+createdAt: string;
+}
+
+const addMembers = async (
+accessToken: string,
+workspaceId: string,
+userIds: string[]
+): Promise<{ message: string; memberships: Membership[] }> => {
+const response = await fetch('/api/v1/memberships/add-members', {
+method: 'POST',
+headers: {
+'Authorization': \`Bearer \${accessToken}\`,
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({ workspaceId, users: userIds })
+});
+return response.json();
+};`,
+}}
+/>
+
+## Default Role
+
+New members are added with the `AGENT` role by default. Use the update endpoint to change their role.

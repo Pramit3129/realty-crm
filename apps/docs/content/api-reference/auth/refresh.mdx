@@ -1,0 +1,67 @@
+---
+title: Refresh Token
+description: Get a new access token using refresh token
+---
+
+Refresh the access token using the refresh token stored in cookies. This endpoint is called automatically when the access token expires.
+
+<EndpointBadge method="POST" path="/api/v1/auth/refresh" auth={false} />
+
+## Request
+
+No body required. The refresh token is read from the HTTP-only cookie.
+
+## Response
+
+Returns `200 OK` on success.
+
+```json
+{
+  "message": "Token refreshed",
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "user"
+  }
+}
+```
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/auth/refresh`,
+    javascript: `// Called automatically when access token expires
+// No manual handling needed - the browser sends the cookie automatically`,
+    python: `import requests
+
+# Called automatically when access token expires
+
+response = requests.post('http://localhost:5000/api/v1/auth/refresh')`,
+    typescript: `// The refresh token is automatically sent via HTTP-only cookie
+// Called automatically when access token expires`,
+}}
+/>
+
+## How It Works
+
+1. Access token expires (after 30 minutes)
+2. Client makes API request with expired access token
+3. Server detects expired token and responds with 401
+4. Client calls `/auth/refresh` (browser automatically sends refresh token cookie)
+5. Server validates refresh token and issues new access token
+
+<Callout type="info">
+  You don't need to manually call this endpoint. Most HTTP clients automatically
+  handle token refresh when receiving a 401 response.
+</Callout>
+
+## Error Responses
+
+| Status | Message               |
+| ------ | --------------------- |
+| 401    | Refresh token missing |
+| 401    | Invalid refresh token |
+| 400    | User not found        |

@@ -1,0 +1,101 @@
+---
+title: Quick Start
+description: Get up and running with Realty CRM in minutes
+---
+
+This guide will help you set up and run the Realty CRM API locally.
+
+## Prerequisites
+
+- **Node.js** 18 or higher
+- **Bun** (JavaScript runtime)
+- **MongoDB** (local or cloud instance)
+
+## Step 1: Clone the Repository
+
+```bash
+git clone <repository-url>
+cd realty-crm
+```
+
+## Step 2: Install Dependencies
+
+```bash
+cd apps/api
+bun install
+```
+
+## Step 3: Configure Environment Variables
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your configuration:
+
+| Variable               | Description                | Example                                |
+| ---------------------- | -------------------------- | -------------------------------------- |
+| `MONGO_URI`            | MongoDB connection string  | `mongodb://localhost:27017/realty-crm` |
+| `JWT_ACCESS_SECRET`    | Secret for access tokens   | (generate a random string)             |
+| `JWT_REFRESH_SECRET`   | Secret for refresh tokens  | (generate a random string)             |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID     | (optional)                             |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | (optional)                             |
+
+<Callout type="info">
+  You can generate random secrets by running: `openssl rand -hex 32`
+</Callout>
+
+## Step 4: Set Up MongoDB
+
+**Option A: Local MongoDB**
+
+```bash
+# Using Docker
+docker run -d -p 27017:27017 --name mongodb mongo
+
+# Or install MongoDB directly from https://www.mongodb.com/try/download/community
+```
+
+**Option B: MongoDB Atlas (Cloud)**
+
+1. Create a free account at [cloud.mongodb.com](https://cloud.mongodb.com)
+2. Create a free cluster
+3. Get your connection string
+4. Update `MONGO_URI` in `.env`
+
+## Step 5: Start the Server
+
+```bash
+bun run dev
+```
+
+The API will be available at `http://localhost:5000`
+
+## Step 6: Verify Installation
+
+Test the health endpoint:
+
+<CodeBlock
+  languages={{
+    curl: `curl http://localhost:5000/api/v1/health`,
+    javascript: `fetch('http://localhost:5000/api/v1/health')
+  .then(res => res.json())
+  .then(console.log)`,
+    python: `import requests
+print(requests.get('http://localhost:5000/api/v1/health').json())`,
+  }}
+/>
+
+Expected response:
+
+```json
+{ "status": "healthy" }
+```
+
+## What's Next?
+
+- [Authentication Guide](/docs/getting-started/authentication) - Learn about the auth flow
+- [Environment Variables](/docs/getting-started/environment-variables) - Full list of configuration options
+- [API Reference](/docs/api-reference/auth/register) - Explore all endpoints

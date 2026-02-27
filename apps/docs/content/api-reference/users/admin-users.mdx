@@ -1,0 +1,86 @@
+---
+title: "Admin: Get All Users"
+description: List all users (admin only)
+---
+
+Retrieve a list of all registered users. This endpoint is restricted to administrators only.
+
+<EndpointBadge method="GET" path="/api/v1/user/admin/users" auth={true} />
+
+## Request Headers
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## Response
+
+Returns `200 OK` on success.
+
+```json
+{
+  "totalUsers": 10,
+  "users": [
+    {
+      "id": "507f1f77bcf86cd799439011",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "user",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl http://localhost:5000/api/v1/user/admin/users \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/user/admin/users', {
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+});
+const { totalUsers, users } = await response.json();`,
+    python: `import requests
+
+response = requests.get(
+'http://localhost:5000/api/v1/user/admin/users',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+)
+data = response.json()
+print(data['totalUsers'], data['users'])`,
+    typescript: `interface AdminUser {
+id: string;
+name: string;
+email: string;
+role: string;
+createdAt: string;
+updatedAt: string;
+}
+
+const getAllUsers = async (accessToken: string): Promise<{ totalUsers: number; users: AdminUser[] }> => {
+const response = await fetch('/api/v1/user/admin/users', {
+headers: {
+'Authorization': \`Bearer \${accessToken}\`
+}
+});
+return response.json();
+};`,
+}}
+/>
+
+<Callout type="warning" title="Admin Only">
+  This endpoint requires the user to have the `admin` role. Regular users will
+  receive a 403 Forbidden response.
+</Callout>
+
+## Error Responses
+
+| Status | Message                             |
+| ------ | ----------------------------------- |
+| 401    | Unauthorized                        |
+| 403    | Forbidden: insufficient permissions |

@@ -1,0 +1,72 @@
+---
+title: Get Current User
+description: Get the authenticated user's profile
+---
+
+Retrieve the profile of the currently authenticated user.
+
+<EndpointBadge method="GET" path="/api/v1/user/me" auth={true} />
+
+## Request Headers
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## Response
+
+Returns `200 OK` on success.
+
+```json
+{
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "email": "john@example.com",
+    "name": "John Doe",
+    "role": "user"
+  }
+}
+```
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl http://localhost:5000/api/v1/user/me \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/user/me', {
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+});
+const { user } = await response.json();`,
+    python: `import requests
+
+response = requests.get(
+'http://localhost:5000/api/v1/user/me',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+)
+user = response.json()['user']`,
+    typescript: `interface User {
+id: string;
+email: string;
+name: string;
+role: string;
+}
+
+const getCurrentUser = async (accessToken: string): Promise<{ user: User }> => {
+const response = await fetch('/api/v1/user/me', {
+headers: {
+'Authorization': \`Bearer \${accessToken}\`
+}
+});
+return response.json();
+};`,
+}}
+/>
+
+## Error Responses
+
+| Status | Message      |
+| ------ | ------------ |
+| 401    | Unauthorized |

@@ -1,0 +1,108 @@
+---
+title: Google OAuth
+description: Authenticate using Google accounts
+---
+
+Use Google OAuth for social login. This is a two-step process: initiate OAuth flow, then handle the callback.
+
+## Step 1: Initiate OAuth
+
+Redirect the user to this endpoint to start the Google OAuth flow.
+
+<EndpointBadge method="GET" path="/api/v1/auth/google" auth={false} />
+
+## Response
+
+The user will be redirected to Google's consent screen. After granting permission, they'll be redirected back to the callback URL.
+
+## Step 2: Handle Callback
+
+Google will redirect back to this endpoint with an authorization code.
+
+<EndpointBadge method="GET" path="/api/v1/auth/google/callback" auth={false} />
+
+## Query Parameters
+
+| Parameter | Type   | Description                    |
+| --------- | ------ | ------------------------------ |
+| `code`    | string | Authorization code from Google |
+| `state`   | string | Optional state parameter       |
+
+## Callback Response
+
+Returns `200 OK` on success.
+
+```json
+{
+  "message": "Google login successful",
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "user"
+  }
+}
+```
+
+The refresh token is automatically set as an HTTP-only cookie.
+
+## Example Flow
+
+### 1. Redirect to Google
+
+<CodeBlock
+  languages={{
+    javascript: `// Redirect user to Google OAuth
+window.location.href = 'http://localhost:5000/api/v1/auth/google';`,
+    python: `import webbrowser
+
+# Open Google OAuth URL in browser
+
+webbrowser.open('http://localhost:5000/api/v1/auth/google')`,
+    typescript: `// Redirect user to Google OAuth
+window.location.href = 'http://localhost:5000/api/v1/auth/google';`,
+}}
+/>
+
+### 2. Handle Callback (Server-side)
+
+The callback is handled automatically by the API. After successful authentication, the user will be redirected to your application's redirect URI with tokens in the response.
+
+### 3. Extract Tokens
+
+<CodeBlock
+  languages={{
+    javascript: `// After Google redirects back with tokens
+const { accessToken, user } = await response.json();
+localStorage.setItem('token', accessToken);`,
+    python: `# After Google redirects back with tokens
+data = response.json()
+access_token = data['access_token']`,
+    typescript: `// After Google redirects back with tokens
+const { accessToken, user } = await response.json();
+localStorage.setItem('token', accessToken);`,
+  }}
+/>
+
+## Google OAuth Scopes
+
+The API requests the following scopes:
+
+- `openid` - OpenID Connect
+- `profile` - Basic profile information
+- `email` - User's email address
+
+<Callout type="info">
+  To use Google OAuth, you must configure `GOOGLE_CLIENT_ID` and
+  `GOOGLE_CLIENT_SECRET` in your environment variables.
+</Callout>
+
+## Error Responses
+
+| Status | Message                           |
+| ------ | --------------------------------- |
+| 400    | Authorization code is required    |
+| 400    | Invalid authorization code        |
+| 400    | Invalid Google token              |
+| 400    | Google email account not verified |

@@ -1,0 +1,103 @@
+---
+title: Create Workspace
+description: Create a new workspace
+---
+
+Create a new workspace. The creating user becomes the owner with full permissions.
+
+<EndpointBadge method="POST" path="/api/v1/workspace/create" auth={true} />
+
+## Request Headers
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## Request Body
+
+```json
+{
+  "name": "string"
+}
+```
+
+## Parameters
+
+| Field  | Type   | Required | Description                      |
+| ------ | ------ | -------- | -------------------------------- |
+| `name` | string | Yes      | Workspace name (min 1 character) |
+
+## Response
+
+Returns `201 Created` on success.
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "name": "My Workspace",
+  "type": "SOLO",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+When a workspace is created, an OWNER membership is automatically created for the creator.
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/workspace/create \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"My Workspace"}'`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/workspace/create', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ name: 'My Workspace' })
+});
+const workspace = await response.json();`,
+    python: `import requests
+
+response = requests.post(
+'http://localhost:5000/api/v1/workspace/create',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'},
+json={'name': 'My Workspace'}
+)
+workspace = response.json()`,
+    typescript: `interface Workspace {
+\_id: string;
+name: string;
+type: 'SOLO' | 'TEAM';
+createdAt: string;
+updatedAt: string;
+}
+
+const createWorkspace = async (accessToken: string, name: string): Promise<Workspace> => {
+const response = await fetch('/api/v1/workspace/create', {
+method: 'POST',
+headers: {
+'Authorization': \`Bearer \${accessToken}\`,
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({ name })
+});
+return response.json();
+};`,
+}}
+/>
+
+## Workspace Types
+
+| Type   | Description                     |
+| ------ | ------------------------------- |
+| `SOLO` | Single user workspace (default) |
+| `TEAM` | Multi-user workspace            |
+
+<Callout type="info">
+  The workspace type is automatically set to `SOLO` when created. It can be
+  changed later through the memberships system.
+</Callout>

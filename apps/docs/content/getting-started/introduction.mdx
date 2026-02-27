@@ -1,0 +1,71 @@
+---
+title: Introduction
+description: Welcome to the Realty CRM API documentation
+---
+
+Realty CRM is a powerful backend API for real estate customer relationship management. It provides a complete authentication system, workspace management, and team collaboration features.
+
+## Features
+
+- **Email & Password Authentication** - Secure registration and login with JWT tokens
+- **Google OAuth** - Social login with Google accounts
+- **Workspace Management** - Create and manage workspaces for different projects
+- **Team Collaboration** - Invite members to workspaces with role-based access
+- **Role-Based Access Control** - Admin and user roles with granular permissions
+- **Token Management** - Access and refresh token system with automatic renewal
+
+## Tech Stack
+
+| Technology | Purpose            |
+| ---------- | ------------------ |
+| Bun        | JavaScript runtime |
+| Express.js | API framework      |
+| MongoDB    | Database           |
+| JWT        | Authentication     |
+| Zod        | Request validation |
+| TypeScript | Type safety        |
+
+## Base URL
+
+```
+http://localhost:5000/api/v1
+```
+
+## Quick Example
+
+Register a new user and create a workspace:
+
+<CodeBlock
+  languages={{
+    curl: `curl -X POST http://localhost:5000/api/v1/auth/register \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"John Doe","email":"john@example.com","password":"Password123!"}'`,
+    javascript: `const response = await fetch('http://localhost:5000/api/v1/auth/register', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'John Doe',
+    email: 'john@example.com',
+    password: 'Password123!'
+  })
+});
+const data = await response.json();
+console.log(data.accessToken);`,
+    python: `import requests
+
+response = requests.post(
+'http://localhost:5000/api/v1/auth/register',
+json={
+'name': 'John Doe',
+'email': 'john@example.com',
+'password': 'Password123!'
+}
+)
+data = response.json()
+print(data['access_token'])`,
+}}
+/>
+
+## Next Steps
+
+Ready to get started? Head over to the [Quick Start](/docs/getting-started/quick-start) guide to set up your development environment.

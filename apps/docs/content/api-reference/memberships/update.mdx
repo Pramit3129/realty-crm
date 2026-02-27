@@ -1,0 +1,129 @@
+---
+title: Update Membership
+description: Update a member's role or acceptance status
+---
+
+Update a workspace member's role or acceptance status.
+
+<EndpointBadge method="PATCH" path="/api/v1/memberships/:id" auth={true} />
+
+## Request Headers
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## URL Parameters
+
+| Parameter | Type   | Description                    |
+| --------- | ------ | ------------------------------ |
+| `id`      | string | ID of the membership to update |
+
+## Request Body
+
+```json
+{
+  "role": "OWNER",
+  "isAccepted": true
+}
+```
+
+## Parameters
+
+| Field        | Type    | Required | Description                                    |
+| ------------ | ------- | -------- | ---------------------------------------------- |
+| `role`       | string  | No       | Role to assign (OWNER or AGENT)                |
+| `isAccepted` | boolean | No       | Whether the member has accepted the invitation |
+
+## Response
+
+Returns `200 OK` on success.
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "workspace": "507f1f77bcf86cd799439012",
+  "user": {
+    "_id": "507f1f77bcf86cd799439013",
+    "name": "Jane Doe",
+    "email": "jane@example.com"
+  },
+  "role": "OWNER",
+  "isAccepted": true,
+  "isRemoved": false,
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl -X PATCH http://localhost:5000/api/v1/memberships/507f1f77bcf86cd799439011 \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"role":"OWNER","isAccepted":true}'`,
+    javascript: `const membershipId = '507f1f77bcf86cd799439011';
+const response = await fetch(\`http://localhost:5000/api/v1/memberships/\${membershipId}\`, {
+  method: 'PATCH',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ role: 'OWNER', isAccepted: true })
+});
+const membership = await response.json();`,
+    python: `import requests
+
+membership_id = '507f1f77bcf86cd799439011'
+response = requests.patch(
+f'http://localhost:5000/api/v1/memberships/{membership_id}',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'},
+json={'role': 'OWNER', 'isAccepted': True}
+)
+membership = response.json()`,
+    typescript: `interface Membership {
+\_id: string;
+workspace: string;
+user: { \_id: string; name: string; email: string };
+role: 'OWNER' | 'AGENT';
+isAccepted: boolean;
+isRemoved: boolean;
+createdAt: string;
+}
+
+const updateMembership = async (
+accessToken: string,
+membershipId: string,
+data: { role?: 'OWNER' | 'AGENT'; isAccepted?: boolean }
+): Promise<Membership> => {
+const response = await fetch(\`/api/v1/memberships/\${membershipId}\`, {
+method: 'PATCH',
+headers: {
+'Authorization': \`Bearer \${accessToken}\`,
+'Content-Type': 'application/json'
+},
+body: JSON.stringify(data)
+});
+return response.json();
+};`,
+}}
+/>
+
+## Roles
+
+| Role    | Description                |
+| ------- | -------------------------- |
+| `OWNER` | Full administrative access |
+| `AGENT` | Standard member access     |
+
+<Callout type="info">
+  Both `role` and `isAccepted` are optional. Only include the fields you want to
+  update.
+</Callout>
+
+## Error Responses
+
+| Status | Message              |
+| ------ | -------------------- |
+| 404    | Membership not found |

@@ -1,0 +1,72 @@
+---
+title: Remove Member
+description: Remove a member from a workspace
+---
+
+Remove a member from a workspace. This is a soft delete - the membership record is kept but marked as removed.
+
+<EndpointBadge method="DELETE" path="/api/v1/memberships/:id" auth={true} />
+
+## Request Headers
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## URL Parameters
+
+| Parameter | Type   | Description                    |
+| --------- | ------ | ------------------------------ |
+| `id`      | string | ID of the membership to remove |
+
+## Response
+
+Returns `200 OK` on success.
+
+```json
+{
+  "message": "Member removed successfully"
+}
+```
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl -X DELETE http://localhost:5000/api/v1/memberships/507f1f77bcf86cd799439011 \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`,
+    javascript: `const membershipId = '507f1f77bcf86cd799439011';
+await fetch(\`http://localhost:5000/api/v1/memberships/\${membershipId}\`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+});`,
+    python: `import requests
+
+membership_id = '507f1f77bcf86cd799439011'
+requests.delete(
+f'http://localhost:5000/api/v1/memberships/{membership_id}',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+)`,
+    typescript: `const removeMember = async (accessToken: string, membershipId: string) => {
+await fetch(\`/api/v1/memberships/\${membershipId}\`, {
+method: 'DELETE',
+headers: {
+'Authorization': \`Bearer \${accessToken}\`
+}
+});
+};`,
+}}
+/>
+
+<Callout type="warning">
+  This is a soft delete. The membership record is not permanently deleted but
+  marked with `isRemoved: true`. The member can be re-added later if needed.
+</Callout>
+
+## Error Responses
+
+| Status | Message              |
+| ------ | -------------------- |
+| 404    | Membership not found |

@@ -1,0 +1,95 @@
+---
+title: Get Workspace Members
+description: List all members of a workspace
+---
+
+Retrieve all members of a specific workspace.
+
+<EndpointBadge
+  method="GET"
+  path="/api/v1/memberships/workspace/:workspaceId"
+  auth={true}
+/>
+
+## Request Headers
+
+```http
+Authorization: Bearer <access_token>
+```
+
+## URL Parameters
+
+| Parameter     | Type   | Description         |
+| ------------- | ------ | ------------------- |
+| `workspaceId` | string | ID of the workspace |
+
+## Response
+
+Returns `200 OK` on success.
+
+```json
+[
+  {
+    "_id": "507f1f77bcf86cd799439011",
+    "workspace": "507f1f77bcf86cd799439012",
+    "user": {
+      "_id": "507f1f77bcf86cd799439013",
+      "name": "John Doe",
+      "email": "john@example.com"
+    },
+    "role": "OWNER",
+    "isAccepted": true,
+    "isRemoved": false,
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
+]
+```
+
+Removed members are excluded from the response.
+
+## Example
+
+<CodeBlock
+  languages={{
+    curl: `curl http://localhost:5000/api/v1/memberships/workspace/507f1f77bcf86cd799439012 \\
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"`,
+    javascript: `const workspaceId = '507f1f77bcf86cd799439012';
+const response = await fetch(\`http://localhost:5000/api/v1/memberships/workspace/\${workspaceId}\`, {
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+});
+const members = await response.json();`,
+    python: `import requests
+
+workspace_id = '507f1f77bcf86cd799439012'
+response = requests.get(
+f'http://localhost:5000/api/v1/memberships/workspace/{workspace_id}',
+headers={'Authorization': 'Bearer YOUR_ACCESS_TOKEN'}
+)
+members = response.json()`,
+    typescript: `interface Member {
+\_id: string;
+workspace: string;
+user: { \_id: string; name: string; email: string };
+role: 'OWNER' | 'AGENT';
+isAccepted: boolean;
+isRemoved: boolean;
+createdAt: string;
+}
+
+const getWorkspaceMembers = async (accessToken: string, workspaceId: string): Promise<Member[]> => {
+const response = await fetch(\`/api/v1/memberships/workspace/\${workspaceId}\`, {
+headers: {
+'Authorization': \`Bearer \${accessToken}\`
+}
+});
+return response.json();
+};`,
+}}
+/>
+
+<Callout type="info">
+  The response is an array, not an object. Each element represents a membership
+  with populated user information.
+</Callout>

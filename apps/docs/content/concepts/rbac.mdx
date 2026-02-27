@@ -1,0 +1,124 @@
+---
+title: Role-Based Access Control
+description: Understanding roles and permissions
+---
+
+Realty CRM implements Role-Based Access Control (RBAC) to manage user permissions.
+
+## User Roles
+
+| Role    | Description   | Use Case                  |
+| ------- | ------------- | ------------------------- |
+| `user`  | Default role  | Regular application users |
+| `admin` | Administrator | System administrators     |
+
+## Permission Matrix
+
+| Endpoint               | user | admin |
+| ---------------------- | ---- | ----- |
+| GET /user/me           | ✓    | ✓     |
+| GET /user/admin/users  | ✗    | ✓     |
+| POST /workspace/create | ✓    | ✓     |
+| POST /memberships/\*   | ✓    | ✓     |
+| GET /memberships/\*    | ✓    | ✓     |
+| PATCH /memberships/\*  | ✓    | ✓     |
+| DELETE /memberships/\* | ✓    | ✓     |
+
+## How It Works
+
+### requireAuth Middleware
+
+All protected routes use the `requireAuth` middleware to verify the user is authenticated:
+
+```typescript
+// middleware/requireAuth.ts
+export function requireAuth(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // Verify token and attach user to request
+  req.user = decodedToken;
+  next();
+}
+```
+
+### requireRole Middleware
+
+Admin-only routes use an additional `requireRole` middleware:
+
+```typescript
+// middleware/requireRole.ts
+export function requireRole(role) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (req.user.role !== role) {
+      return res
+        .status(403)
+        .json({ message: "Forbidden: insufficient permissions" });
+    }
+
+    next();
+  };
+}
+```
+
+## Implementation
+
+### Route Protection
+
+```typescript
+// Protected route - any authenticated user
+router.get("/user/me", requireAuth, getCurrentUser);
+
+// Admin only route
+router.get("/user/admin/users", requireAuth, requireRole("ADMIN"), getAllUsers);
+```
+
+### Client-Side Check
+
+```javascript
+// Check user role from login response
+const { user } = await response.json();
+
+if (user.role === "admin") {
+  // Show admin features
+  showAdminPanel();
+}
+```
+
+## Membership Roles
+
+Within a workspace, members have additional roles:
+
+| Role    | Description                 |
+| ------- | --------------------------- |
+| `OWNER` | Full control over workspace |
+| `AGENT` | Standard member             |
+
+### Membership Role Permissions
+
+| Action                 | OWNER | AGENT |
+| ---------------------- | ----- | ----- |
+| View workspace members | ✓     | ✓     |
+| Add members            | ✓     | ✓     |
+| Update member role     | ✓     | ✗     |
+| Remove members         | ✓     | ✗     |
+| Delete workspace       | ✓     | ✗     |
+
+<Callout type="info">
+  Membership roles are separate from user roles. A user can be an `admin` in the
+  system but an `AGENT` in a specific workspace.
+</Callout>
+
+## Best Practices
+
+1. **Principle of least privilege** - Grant only necessary permissions
+2. **Separate concerns** - Use membership roles for workspace-level access
+3. **Validate on server** - Always enforce roles on the backend
+4. **Audit logging** - Log admin actions for accountability
