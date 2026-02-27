@@ -8,8 +8,6 @@ export interface ILead {
     status: string;
     realtorId: Types.ObjectId;
     workspaceId: Types.ObjectId;
-    createdAt: Date;
-    updatedAt: Date;
 }
 
 export interface ILeadCreate {
@@ -17,6 +15,21 @@ export interface ILeadCreate {
     email: string;
     phone: string;
     source: string;
-    realtorId: Types.ObjectId;
-    workspaceId: Types.ObjectId;
+    realtorId: Types.ObjectId | string;
+    workspaceId: Types.ObjectId | string;
+}
+
+export interface IleadOverView {
+    name: string,
+    email: string,
+    phone: string,
+    _id: Types.ObjectId,
+}
+
+export interface ILeadUpdate {
+    name?: string;
+    email?: string;
+    phone?: string;
+    source?: string;
+    realtorId?: Types.ObjectId | string;
 }

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import type{ ILead } from "./lead.types";
+import type { ILead } from "./lead.types";
 
 const leadSchema = new mongoose.Schema<ILead>({
     name: {
@@ -28,14 +28,10 @@ const leadSchema = new mongoose.Schema<ILead>({
         ref: "User",
         required: true
     },
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now,
-    },
-})
+}, {
+    timestamps: true,
+});
+
+leadSchema.index({ workspaceId: 1, realtorId: 1 });
 
 export const Lead = mongoose.model<ILead>("Lead", leadSchema);
