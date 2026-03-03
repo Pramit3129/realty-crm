@@ -9,8 +9,8 @@ export interface ILead {
     realtorId: Types.ObjectId;
     workspaceId: Types.ObjectId;
     pipelineId: Types.ObjectId;
-    stageId: Types.ObjectId;
-    campaignId: Types.ObjectId;
+    stageId?: Types.ObjectId;
+    campaignId?: Types.ObjectId;
 }
 
 export interface ILeadCreate {
