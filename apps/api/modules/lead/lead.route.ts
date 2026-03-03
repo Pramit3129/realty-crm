@@ -1,5 +1,5 @@
 import express from "express";
-import { createLead, getLeads, updateLead, deleteLead, getLeadDetails, addLeads } from "./lead.controller";
+import { createLead, getLeads, updateLead, deleteLead, getLeadDetails, addLeads, getLeadsByCampaing, assignCampaingToLeads } from "./lead.controller";
 const router = express.Router();
 import requireAuth from "../../shared/middleware/requireAuth";
 
@@ -16,5 +16,8 @@ router.get("/workspace/:workspaceId", getLeads);
 router.get("/details/:id", getLeadDetails);
 router.put("/details/:id", updateLead);
 router.delete("/details/:id", deleteLead);
+router.get("/campaign/:campaignId/workspace/:workspaceId", getLeadsByCampaing);
+router.post("/assignCampaingToLeads", assignCampaingToLeads);
+
 
 export default router;

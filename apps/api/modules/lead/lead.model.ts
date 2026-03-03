@@ -37,6 +37,10 @@ const leadSchema = new mongoose.Schema<ILead>({
         type: mongoose.Schema.Types.ObjectId,
         ref: "PipelineStage",
     },
+    campaignId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Campaing",
+    },
     status: {
         type: String,
         enum: ["new", "contacted", "converted", "lost"],
@@ -47,5 +51,6 @@ const leadSchema = new mongoose.Schema<ILead>({
 });
 
 leadSchema.index({ workspaceId: 1, realtorId: 1 });
+leadSchema.index({ campaignId: 1, realtorId: 1, workspaceId: 1 });
 
 export const Lead = mongoose.model<ILead>("Lead", leadSchema);

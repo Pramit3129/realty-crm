@@ -64,14 +64,14 @@ export class LeadService {
             { realtorId, _id: leadId },
             leadData,
             { new: true, runValidators: true }
-        );
+        ).lean();
     }
 
     static async deleteLead(realtorId: string, leadId: string) {
-        return await Lead.findOneAndDelete({ realtorId, _id: leadId });
+        return await Lead.findOneAndDelete({ realtorId, _id: leadId }).lean();
     }
 
-    static async addLeads(leads: ILeadCreate[], realtorId: string, workspaceId: string, pipelineId?: string) {
+    static async addLeads(leads: ILeadCreate[], realtorId: string, workspaceId: string, pipelineId?: string, campaignId?: string) {
         const checkWorkspace = await Membership.findOne({
             workspace: workspaceId,
             user: realtorId,
@@ -96,9 +96,39 @@ export class LeadService {
             workspaceId: workspaceId,
             pipelineId: lead.pipelineId || defaultPipelineId,
             stageId: lead.stageId || defaultStageId,
+            campaignId: campaignId,
         }));
+
         const insertedLeads = await Lead.insertMany(newLeads);
         return insertedLeads;
     }
 
+    static async assignCampaingToLeads(leads: string[], campaignId: string, userId: string, workspaceId: string) {
+        const checkWorkspace = await Membership.findOne({
+            workspace: workspaceId,
+            user: userId,
+            isRemoved: false,
+        });
+        if (!checkWorkspace) {
+            throw new Error("You are not a member of this workspace");
+        }
+        const updatedLeads = await Lead.updateMany(
+            { _id: { $in: leads }, realtorId: userId, workspaceId },
+            { $set: { campaignId } }
+        );
+        return updatedLeads;
+    }
+
+    static async getLeadsByCampaing(campaignId: string, userId: string, workspaceId: string) {
+        const checkWorkspace = await Membership.findOne({
+            workspace: workspaceId,
+            user: userId,
+            isRemoved: false,
+        });
+        if (!checkWorkspace) {
+            throw new Error("You are not a member of this workspace");
+        }
+        const leads = await Lead.find({ campaignId, realtorId: userId, workspaceId }).lean();
+        return leads;
+    }
 }

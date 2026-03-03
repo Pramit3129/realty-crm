@@ -84,10 +84,43 @@ export async function deleteLead(req: Request, res: Response) {
 export async function addLeads(req: Request, res: Response) {
     try {
         const authReq = req as AuthenticatedRequest;
-        const { leads, workspaceId, pipelineId } = req.body;
-        const insertedLeads = await LeadService.addLeads(leads, authReq.user.id, workspaceId, pipelineId);
+        const { leads, workspaceId, pipelineId, campaignId } = req.body;
+        const insertedLeads = await LeadService.addLeads(leads, authReq.user.id, workspaceId, pipelineId, campaignId);
         res.status(201).json({ leads: insertedLeads });
     } catch (error: any) {
         res.status(400).json({ message: error.message || "Failed to add leads" });
+    }
+}
+
+export async function assignCampaingToLeads(req: Request, res: Response) {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user.id;
+        const { leads, workspaceId, campaignId } = req.body;
+        if (!leads || !Array.isArray(leads) || !leads.length || !campaignId || !workspaceId) {
+            res.status(400).json({ message: "leads (array), campaignId, and workspaceId are required" });
+            return;
+        }
+        const updatedLeads = await LeadService.assignCampaingToLeads(leads, campaignId, userId, workspaceId);
+        res.status(200).json({ leads: updatedLeads });
+    } catch (error: any) {
+        res.status(400).json({ message: error.message || "Failed to assign campaign to leads" });
+    }
+}
+
+export async function getLeadsByCampaing(req: Request, res: Response) {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user.id;
+        const campaignId = req.params.campaignId as string;
+        const workspaceId = req.params.workspaceId as string;
+        if (!campaignId || !workspaceId) {
+            res.status(400).json({ message: "campaignId and workspaceId are required" });
+            return;
+        }
+        const leads = await LeadService.getLeadsByCampaing(campaignId, userId, workspaceId);
+        res.status(200).json({ leads });
+    } catch (error: any) {
+        res.status(400).json({ message: error.message || "Failed to fetch leads" });
     }
 }

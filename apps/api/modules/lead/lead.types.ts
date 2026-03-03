@@ -10,6 +10,7 @@ export interface ILead {
     workspaceId: Types.ObjectId;
     pipelineId: Types.ObjectId;
     stageId: Types.ObjectId;
+    campaignId: Types.ObjectId;
 }
 
 export interface ILeadCreate {
@@ -21,6 +22,7 @@ export interface ILeadCreate {
     workspaceId: Types.ObjectId | string;
     pipelineId?: Types.ObjectId | string;
     stageId?: Types.ObjectId | string;
+    campaignId?: Types.ObjectId | string;
     type?: "BUYER" | "SELLER";
 }
 
