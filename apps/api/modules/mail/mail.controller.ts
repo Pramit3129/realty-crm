@@ -96,7 +96,7 @@ export const sendMail = async (req: Request, res: Response) => {
         const promises = [];
         for (let i = 0; i < leads.length; i += batchSize) {
             const batch = leads.slice(i, i + batchSize);
-            promises.push(MailService.queueMail(batch, mail, realtorObjectId, delay));
+            promises.push(MailService.queueMail(batch, mail, realtorObjectId, delay ? delay : 0));
         }
         const results = await Promise.all(promises);
         return res.status(200).json({
