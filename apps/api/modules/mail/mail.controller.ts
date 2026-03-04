@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { MailService } from "./mail.service";
 import { Templates } from "./templates";
+import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
+import mongoose from "mongoose";
 
 
 export const generateMail = async (req: Request, res: Response) => {
@@ -46,7 +48,6 @@ export const getAllTemplates = async (req: Request, res: Response) => {
     }
 }
 
-
 export const getTemplate = async (req: Request, res: Response) => {
     try {
         const { type, subject, body } = req.body;
@@ -72,7 +73,43 @@ export const getTemplate = async (req: Request, res: Response) => {
     }
 }
 
-
+// NOTE: in mails wherever the realtor wants the lead name in email body, use {{name}}
 export const sendMail = async (req: Request, res: Response) => {
-    res.send("Mail sent successfully");
+    const realtorId = (req as AuthenticatedRequest).user.id;
+    const { leads, mail, delay } = req.body;
+    if (!leads || !mail) {
+        return res.status(400).json({
+            success: false,
+            message: "Leads, mail and realtorId are required",
+        })
+    }
+    if (leads.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Leads are required",
+        })
+    }
+    const realtorObjectId = new mongoose.Types.ObjectId(realtorId);
+
+    if (leads.length > 50) {
+        const batchSize = 50;
+        const promises = [];
+        for (let i = 0; i < leads.length; i += batchSize) {
+            const batch = leads.slice(i, i + batchSize);
+            promises.push(MailService.queueMail(batch, mail, realtorObjectId, delay));
+        }
+        const results = await Promise.all(promises);
+        return res.status(200).json({
+            success: true,
+            message: `Mail queued for sending successfully in ${results.length} batches`,
+            data: results,
+        });
+    }
+
+    const result = await MailService.queueMail(leads, mail, realtorObjectId, delay);
+    return res.status(200).json({
+        success: true,
+        message: "Mail queued for sending successfully",
+        data: result,
+    })
 }
