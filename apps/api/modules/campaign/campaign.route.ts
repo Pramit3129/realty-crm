@@ -1,11 +1,17 @@
 import express from "express";
-import { createCampaing, updateCampaing, getCampaingDetails, getCampaings, deleteCampaing } from "./campaing.controller";
+import {
+  createCampaing,
+  updateCampaing,
+  getCampaingDetails,
+  getCampaings,
+  deleteCampaing,
+} from "./campaign.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
 
 const router = express.Router();
 
 router.get("/health", (req, res) => {
-    res.send("Campaing Route running properly");
+  res.send("Campaing Route running properly");
 });
 
 router.use(requireAuth);

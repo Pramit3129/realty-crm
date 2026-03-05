@@ -10,7 +10,7 @@ import leadModule from "./modules/lead/lead.module";
 import pipelineModule from "./modules/pipeline/pipeline.module";
 import pipelineStageModule from "./modules/pipelineStage/pipelineStage.module";
 import mailModule from "./modules/mail/mail.module";
-import campaingModule from "./modules/campaing/campaing.module";
+import campaignModule from "./modules/campaign/campaign.module";
 import workerModule from "./modules/worker/worker.module";
 
 const app = express();
@@ -42,7 +42,7 @@ app.use("/api/v1/lead", leadModule);
 app.use("/api/v1/pipeline", pipelineModule);
 app.use("/api/v1/pipeline-stage", pipelineStageModule);
 app.use("/api/v1/mail", mailModule);
-app.use("/api/v1/campaign", campaingModule);
+app.use("/api/v1/campaign", campaignModule);
 app.use("/api/v1/worker", workerModule);
 
 export default app;
