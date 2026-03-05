@@ -1,5 +1,6 @@
-import { Campaing } from "./campaign.model";
-import type { ICampaignCreate, ICampaignUpdate } from "./campaign.types";
+import { Campaing } from "./models/campaign.model";
+import { CampaignStep } from "./models/campaignStep.model";
+import type { ICampaignCreate, ICampaignUpdate, ICampaignStepCreate } from "./campaign.types";
 
 export class CampaingService {
   static async createCampaing(data: ICampaignCreate) {
@@ -43,5 +44,17 @@ export class CampaingService {
       .sort({ createdAt: -1 })
       .lean();
     return campaings;
+  }
+
+  static async createCampaignStep(data: ICampaignStepCreate) {
+    const campaignStep = await CampaignStep.create({
+      campaignId: data.campaignId,
+      subject: data.subject,
+      body: data.body,
+      delayDays: data.delayDays,
+      stepOrder: data.stepOrder,
+    });
+    await campaignStep.save();
+    return campaignStep;
   }
 }

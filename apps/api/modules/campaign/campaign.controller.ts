@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { CampaingService } from "./campaign.service";
 import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
-import type { ICampaignCreate, ICampaignUpdate } from "./campaign.types";
+import type { ICampaignCreate, ICampaignUpdate, ICampaignStepCreate } from "./campaign.types";
 
 export const createCampaing = async (req: Request, res: Response) => {
   try {
@@ -149,3 +149,35 @@ export const deleteCampaing = async (req: Request, res: Response) => {
   }
 };
 
+export const createCampaignStep = async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    const { campaignId, subject, body, delayDays, stepOrder } = req.body;
+    if (!campaignId || !subject || !body || !delayDays || !stepOrder) {
+      return res.status(400).json({
+        success: false,
+        message: "CampaignId, subject, body, delayDays and stepOrder are required",
+      });
+    }
+    const campaignStepCreateData: ICampaignStepCreate = {
+      campaignId,
+      subject,
+      body,
+      delayDays,
+      stepOrder,
+    };
+    const campaignStep = await CampaingService.createCampaignStep(campaignStepCreateData);
+    return res.status(200).json({
+      success: true,
+      message: "Campaign step created successfully",
+      data: campaignStep,
+    });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create campaign step",
+    });
+  }
+};

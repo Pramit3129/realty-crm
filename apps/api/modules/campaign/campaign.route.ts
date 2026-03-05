@@ -5,6 +5,7 @@ import {
   getCampaingDetails,
   getCampaings,
   deleteCampaing,
+  createCampaignStep,
 } from "./campaign.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
 
@@ -21,5 +22,7 @@ router.put("/update", updateCampaing);
 router.get("/details/:campaignId", getCampaingDetails);
 router.get("/:workspaceId", getCampaings);
 router.delete("/:campaignId", deleteCampaing);
+
+router.post('/step/create', createCampaignStep);
 
 export default router;

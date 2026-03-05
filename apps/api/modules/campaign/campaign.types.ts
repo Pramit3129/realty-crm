@@ -35,3 +35,11 @@ export interface ICampaignResponse {
     createdAt: Date;
     updatedAt: Date;
 }
+
+export interface ICampaignStepCreate {
+    campaignId: string;
+    subject: string;
+    body: string;
+    delayDays: number;
+    stepOrder: number;
+}
