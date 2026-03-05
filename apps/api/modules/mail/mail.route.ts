@@ -1,5 +1,5 @@
 import express from "express";
-import { generateMail, getAllTemplates, getTemplate, sendMail } from "./mail.controller";
+import { generateMail, getAllTemplates, getTemplate } from "./mail.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
 
 const router = express.Router();
@@ -13,6 +13,6 @@ router.use(requireAuth);
 router.post("/generateMail", generateMail);
 router.get("/templates", getAllTemplates);
 router.post("/template", getTemplate);
-router.post("/sendMail", sendMail);
+// router.post("/sendMail", sendMail);
 
 export default router;

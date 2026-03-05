@@ -12,9 +12,9 @@ const campaignBatchSchema = new mongoose.Schema({
     },
 
     leads: [{
-        leadId: mongoose.Schema.Types.ObjectId,
-        email: String,
-        name: String
+        leadId: { type: mongoose.Schema.Types.ObjectId, required: true },
+        email: { type: String, required: true },
+        name: { type: String, required: true }
     }],
 
     runAt: Date,

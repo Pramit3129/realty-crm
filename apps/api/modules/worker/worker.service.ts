@@ -1,57 +1,61 @@
 import { Resend } from "resend";
-import Mail from "../mail/mail.model";
-import { Lead } from "../lead/lead.model";
+import { CampaignBatch } from "../campaign/models/campaignBatch.model";
+import { CampaignStep } from "../campaign/models/campaignStep.model";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class WorkerService {
 
-    static async sendBatchEmailWithRetry(
-        mailId: string,
-        attempt = 1
-    ): Promise<void> {
+    static async sendBatchEmailWithRetry(batchId: string): Promise<void> {
 
-        const mailDoc = await Mail.findById(mailId);
-        if (!mailDoc) {
-            throw new Error(`Mail document not found for id: ${mailId}`);
+        const batchDoc = await CampaignBatch.findOneAndUpdate(
+            { _id: batchId, status: "queued" },
+            { $set: { status: "processing" } },
+            { new: true }
+        );
+
+        if (!batchDoc) return;
+
+        const step = await CampaignStep
+            .findById(batchDoc.stepId)
+            .select("subject body")
+            .lean();
+
+        if (!step) {
+            throw new Error(`Campaign step not found for batch id: ${batchId}`);
         }
 
-        const leadIds = mailDoc.leads.map((l: any) => l.leadId);
-        const leads = await Lead.find({ _id: { $in: leadIds } }).select("email name");
+        const leads = batchDoc.leads || [];
 
-        if (leads.length === 0) {
-            throw new Error(`No leads found for mail id: ${mailId}`);
+        const batchPayload = leads
+            .filter((l: any) => l?.email)
+            .map((lead: any) => ({
+                from: process.env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
+                to: [lead.email],
+                subject: step.subject,
+                html: step.body?.replace("{{name}}", lead.name || "there")
+            }));
+
+        if (batchPayload.length === 0) {
+            await CampaignBatch.findByIdAndUpdate(batchId, { status: "failed" });
+            return;
         }
 
         try {
 
-            const batchPayload = leads.map((lead) => {
-                return {
-                    from: process.env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
-                    to: [lead.email],
-                    subject: mailDoc.subject,
-                    html: mailDoc.body.replace("{{name}}", lead.name),
-                }
+            await resend.batch.send(batchPayload);
+
+            await CampaignBatch.findByIdAndUpdate(batchId, {
+                status: "sent"
             });
 
-            await resend.batch.send(batchPayload);
-            await Mail.findByIdAndUpdate(mailId, { status: "sent" });
+        } catch (error) {
 
-        } catch (error: any) {
+            await CampaignBatch.findByIdAndUpdate(batchId, {
+                status: "failed"
+            });
 
-            if (error.status === 429 && attempt <= 3) {
-                const delay = 1000 * attempt;
-
-                await new Promise((r) => setTimeout(r, delay));
-
-                return WorkerService.sendBatchEmailWithRetry(
-                    mailId,
-                    attempt + 1
-                );
-            }
-
-            await Mail.findByIdAndUpdate(mailId, { status: "failed" });
-            throw error;
+            throw error; 
         }
     }
 }
