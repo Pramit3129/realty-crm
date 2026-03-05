@@ -154,7 +154,7 @@ export const createCampaignStep = async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user.id;
     const { campaignId, subject, body, delayDays, stepOrder } = req.body;
-    if (!campaignId || !subject || !body || !delayDays || !stepOrder) {
+    if (!campaignId || !subject || !body || delayDays == null || stepOrder == null) {
       return res.status(400).json({
         success: false,
         message: "CampaignId, subject, body, delayDays and stepOrder are required",
@@ -274,7 +274,7 @@ export const updateCampaignStep = async (req: Request, res: Response) => {
     const userId = authReq.user.id;
     const stepId = req.params.stepId as string;
     const { subject, body, delayDays } = req.body;
-    if (!stepId || !subject || !body || !delayDays) {
+    if (!stepId || !subject || !body || delayDays == null) {
       return res.status(400).json({
         success: false,
         message: "stepId, subject, body and delayDays are required",

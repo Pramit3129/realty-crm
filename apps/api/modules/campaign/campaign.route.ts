@@ -23,14 +23,14 @@ router.use(requireAuth);
 
 router.post("/create", createCampaing);
 router.put("/update", updateCampaing);
-router.get("/details/:campaignId", getCampaingDetails);
-router.get("/:workspaceId", getCampaings);
-router.delete("/:campaignId", deleteCampaing);
-
 router.post('/step/create', createCampaignStep);
 router.post('/start', startCampaign);
-router.delete('/step/:stepId', deleteCampaignStep);
-router.get('/:campaignId/steps', getCampaignSteps);
 router.put('/step/:stepId', updateCampaignStep);
+router.delete('/step/:stepId', deleteCampaignStep);
+
+router.get("/details/:campaignId", getCampaingDetails);
+router.get('/:campaignId/steps', getCampaignSteps);
+router.get("/:workspaceId", getCampaings);
+router.delete("/:campaignId", deleteCampaing);
 
 export default router;
