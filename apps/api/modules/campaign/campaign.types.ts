@@ -35,3 +35,22 @@ export interface ICampaignResponse {
     createdAt: Date;
     updatedAt: Date;
 }
+
+export interface ICampaignStepCreate {
+    campaignId: string;
+    subject: string;
+    body: string;
+    delayDays: number;
+    stepOrder: number;
+}
+
+export interface ICampaignStart {
+    campaignId: string;
+    leads: ILead[];
+}
+
+export interface ILead {
+    leadId: mongoose.Schema.Types.ObjectId;
+    email: string;
+    name: string;
+}

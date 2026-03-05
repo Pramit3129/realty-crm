@@ -9,14 +9,14 @@ export const sendMail = async (req: Request, res: Response) => {
                 message: "Unauthorized",
             })
         }
-        const { mailId } = req.body;
-        if (!mailId) {
+        const { batchId } = req.body;
+        if (!batchId) {
             return res.status(400).json({
                 success: false,
-                message: "mailId is required",
+                message: "batchId is required",
             })
         }
-        await WorkerService.sendBatchEmailWithRetry(mailId);
+        await WorkerService.sendBatchEmailWithRetry(batchId);
         return res.status(200).json({
             success: true,
             message: "Mail sent successfully",
