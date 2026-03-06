@@ -12,12 +12,19 @@ import {
   Tag,
   ChevronDown,
   Check,
+  LayoutList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { API_BASE_URL, getToken } from "@/lib/auth";
 
 // ── Types ─────────────────────────────────────────────────────────────
+interface Pipeline {
+  _id: string;
+  name: string;
+  type: string;
+}
+
 interface Lead {
   _id: string;
   name: string;
@@ -26,6 +33,7 @@ interface Lead {
   source: string;
   city?: string;
   status: string;
+  pipelineId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -141,6 +149,7 @@ const TABLE_COLUMNS = [
 // ══════════════════════════════════════════════════════════════════════
 export default function LeadsView({ workspaceId }: LeadsViewProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(
     new Set(),
@@ -185,9 +194,28 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
     }
   }, [workspaceId, token]);
 
+  const fetchPipelines = useCallback(async () => {
+    if (!workspaceId) return;
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/pipeline/workspace/${workspaceId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setPipelines(data || []);
+      }
+    } catch {
+      /* silent */
+    }
+  }, [workspaceId, token]);
+
   useEffect(() => {
     fetchLeads();
-  }, [fetchLeads]);
+    fetchPipelines();
+  }, [fetchLeads, fetchPipelines]);
 
   // Keep selected lead in sync after refetch
   useEffect(() => {
@@ -651,6 +679,7 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
       {selectedLead && (
         <DetailPanel
           lead={selectedLead}
+          pipelines={pipelines}
           onClose={() => setSelectedLead(null)}
           onUpdate={(field, value) =>
             saveInlineEdit(selectedLead._id, field, value)
@@ -904,10 +933,12 @@ function CountryCodeSelect({
 // ── Detail Panel ──────────────────────────────────────────────────────
 function DetailPanel({
   lead,
+  pipelines,
   onClose,
   onUpdate,
 }: {
   lead: Lead;
+  pipelines: Pipeline[];
   onClose: () => void;
   onUpdate: (field: string, value: string) => void;
 }) {
@@ -961,7 +992,9 @@ function DetailPanel({
 
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
-        {activeTab === "home" && <HomeTab lead={lead} onUpdate={onUpdate} />}
+        {activeTab === "home" && (
+          <HomeTab lead={lead} pipelines={pipelines} onUpdate={onUpdate} />
+        )}
         {activeTab === "timeline" && (
           <div className="flex flex-1 items-center justify-center px-4 py-12">
             <p className="text-xs text-muted-foreground/60">
@@ -991,9 +1024,11 @@ function DetailPanel({
 // ── Home tab content ──────────────────────────────────────────────────
 function HomeTab({
   lead,
+  pipelines,
   onUpdate,
 }: {
   lead: Lead;
+  pipelines: Pipeline[];
   onUpdate: (field: string, value: string) => void;
 }) {
   return (
@@ -1035,6 +1070,17 @@ function HomeTab({
           icon={Clock}
           label="Created"
           value={timeAgo(lead.createdAt)}
+        />
+      </div>
+
+      <div className="mt-8">
+        <p className="mb-4 text-[13px] font-semibold text-foreground">
+          Pipeline
+        </p>
+        <PipelineOpportunity
+          pipelineId={lead.pipelineId}
+          pipelines={pipelines}
+          onChange={(p) => onUpdate("pipelineId", p)}
         />
       </div>
     </div>
@@ -1145,6 +1191,70 @@ function DetailStatusRow({
       <div className="flex-1">
         <StatusDropdown status={status} onChange={onChange} />
       </div>
+    </div>
+  );
+}
+
+// ── Pipeline Opportunity Box ───────────────────────────────────────────
+function PipelineOpportunity({
+  pipelineId,
+  pipelines,
+  onChange,
+}: {
+  pipelineId?: string;
+  pipelines: Pipeline[];
+  onChange: (s: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const selectedPipeline = pipelines.find((p) => p._id === pipelineId);
+  const title = selectedPipeline?.name || "Select Pipeline";
+  const initial = title.charAt(0).toUpperCase();
+
+  return (
+    <div ref={ref} className="relative inline-block w-full">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 rounded-md bg-white/[0.04] px-2 py-1.5 transition-colors hover:bg-white/[0.08] w-max"
+      >
+        <span className="flex h-5 w-5 items-center justify-center rounded-[4px] bg-green-500/20 text-[10px] font-bold text-green-400">
+          {initial}
+        </span>
+        <span className="text-[12px] font-medium text-foreground">{title}</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-48 w-64 overflow-auto rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
+          {pipelines.map((p) => (
+            <button
+              key={p._id}
+              onClick={() => {
+                onChange(p._id);
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            >
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-green-500/20 text-[10px] font-bold text-green-400">
+                {p.name.charAt(0).toUpperCase()}
+              </span>
+              <span className="truncate">
+                {p.name} {p.type === "BUYER" ? "(Buyer)" : "(Seller)"}
+              </span>
+              {pipelineId === p._id && <Check className="ml-auto h-3 w-3" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

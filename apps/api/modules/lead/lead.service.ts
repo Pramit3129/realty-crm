@@ -2,6 +2,7 @@ import { Lead } from "./lead.model";
 import type { ILeadCreate, IleadOverView, ILeadUpdate } from "./lead.types";
 import { Membership } from "../memberships/memberships.model";
 import { ensureDefaultPipelines } from "../pipeline/pipeline.seed";
+import { PipelineStage } from "../pipelineStage/pipelineStage.model";
 
 
 export class LeadService {
@@ -45,12 +46,12 @@ export class LeadService {
         const roleInWorkspace = membership.role;
         if (roleInWorkspace === "OWNER") {
             const leadDetails: IleadOverView[] = await Lead.find({ workspaceId })
-                .select("name email phone city status source createdAt updatedAt _id")
+                .select("name email phone city status source pipelineId stageId createdAt updatedAt _id")
                 .lean();
             return leadDetails;
         }
         const leadDetails: IleadOverView[] = await Lead.find({ workspaceId, realtorId })
-            .select("name email phone city status source createdAt updatedAt _id")
+            .select("name email phone city status source pipelineId stageId createdAt updatedAt _id")
             .lean();
             
         return leadDetails;
@@ -61,6 +62,16 @@ export class LeadService {
     }
 
     static async updateLead(realtorId: string, leadId: string, leadData: ILeadUpdate) {
+        if (leadData.pipelineId) {
+            const currentLead = await Lead.findOne({ realtorId, _id: leadId }).lean();
+            if (currentLead && currentLead.pipelineId?.toString() !== leadData.pipelineId.toString()) {
+                const firstStage = await PipelineStage.findOne({ pipelineId: leadData.pipelineId }).sort({ stageNumber: 1 });
+                if (firstStage) {
+                    leadData.stageId = firstStage._id;
+                }
+            }
+        }
+
         return await Lead.findOneAndUpdate(
             { realtorId, _id: leadId },
             leadData,
