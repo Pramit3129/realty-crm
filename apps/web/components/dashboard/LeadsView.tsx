@@ -13,10 +13,12 @@ import {
   ChevronDown,
   Check,
   LayoutList,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { API_BASE_URL, getToken } from "@/lib/auth";
+import Papa from "papaparse";
 
 // ── Types ─────────────────────────────────────────────────────────────
 interface Pipeline {
@@ -155,6 +157,7 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
     new Set(),
   );
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // inline editing
@@ -364,6 +367,15 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                 Delete Selected ({selectedLeadIds.size})
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowBatchModal(true)}
+              className="h-7 gap-1.5 rounded-md px-3 text-xs border-white/[0.08] hover:bg-white/[0.04]"
+            >
+              <Upload className="h-3 w-3" />
+              Batch Record Add
+            </Button>
             <Button
               size="sm"
               onClick={() => setShowNewForm(true)}
@@ -686,6 +698,14 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
           }
         />
       )}
+
+      {/* ── CSV Upload Modal ────────────────────────────────────────── */}
+      <CsvUploadModal
+        workspaceId={workspaceId}
+        open={showBatchModal}
+        onClose={() => setShowBatchModal(false)}
+        onSuccess={fetchLeads}
+      />
     </div>
   );
 }
@@ -1255,6 +1275,167 @@ function PipelineOpportunity({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── CSV Upload Modal ──────────────────────────────────────────────────
+function CsvUploadModal({
+  workspaceId,
+  open,
+  onClose,
+  onSuccess,
+}: {
+  workspaceId: string;
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!open) return null;
+
+  async function handleUpload() {
+    if (!file) {
+      setError("Please select a CSV file first.");
+      return;
+    }
+    setError("");
+    setUploading(true);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data as any[];
+        // Map row headers (case-insensitive) to expected keys
+        const leads = rows
+          .map((r: any) => {
+            const getVal = (key: string) => {
+              const foundKey = Object.keys(r).find((k) => k.toLowerCase() === key.toLowerCase());
+              return foundKey ? r[foundKey]?.trim() : "";
+            };
+            return {
+              name: getVal("name"),
+              email: getVal("email"),
+              phone: getVal("phone"),
+              city: getVal("city"),
+              source: getVal("source") || "CSV Upload",
+              workspaceId,
+            };
+          })
+          .filter((l) => l.name); // only keep leads that have at least a name
+
+        if (leads.length === 0) {
+          setError("No valid leads found. Please ensure your CSV has a 'name' column.");
+          setUploading(false);
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE_URL}/lead/addLeads`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${getToken()}`,
+            },
+            body: JSON.stringify({ leads, workspaceId }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json();
+            setError(data.message || "Failed to upload leads");
+            setUploading(false);
+            return;
+          }
+
+          setUploading(false);
+          setFile(null);
+          onSuccess();
+          onClose();
+        } catch (err) {
+          setError("Network error occurred while uploading. Please try again.");
+          setUploading(false);
+        }
+      },
+      error: (err: any) => {
+        setError("Failed to parse CSV file: " + err.message);
+        setUploading(false);
+      }
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#121212] p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Batch Record Add</h2>
+          <button onClick={onClose} className="text-muted-foreground transition hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        
+        <div className="mb-6 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Upload a CSV file to import multiple leads at once.
+          </p>
+          <div className="rounded-lg border border-white/[0.04] bg-white/[0.02] p-4">
+            <p className="mb-2 text-xs font-medium text-foreground">Required CSV Format:</p>
+            <div className="flex flex-wrap gap-2 font-mono text-[11px] text-muted-foreground">
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">name</span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">email</span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">phone</span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">city</span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">source</span>
+            </div>
+            <p className="mt-3 text-[11px] text-muted-foreground/60">
+              Only 'name' is strictly required, but including headers is mandatory.
+            </p>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => {
+                setFile(e.target.files?.[0] || null);
+                setError("");
+              }}
+              className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-white/[0.06] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-foreground hover:file:bg-white/[0.1] focus:outline-none"
+            />
+            {error && <p className="text-xs text-red-500">{error}</p>}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          {uploading ? (
+            <Button size="sm" disabled className="h-8 text-xs w-28">
+              Importing...
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="h-8 text-xs hover:bg-white/[0.06]"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleUpload}
+                disabled={!file}
+                className="h-8 text-xs w-28"
+              >
+                Import CSV
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
