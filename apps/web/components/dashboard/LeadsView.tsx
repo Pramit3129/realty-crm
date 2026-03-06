@@ -14,6 +14,7 @@ import {
   Check,
   LayoutList,
   Upload,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,11 @@ interface Lead {
   city?: string;
   status: string;
   pipelineId?: string;
+  stageId?: {
+    _id: string;
+    name: string;
+    colorIndex: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +63,16 @@ const STATUS_COLOR_PALETTE = [
   { bg: "rgba(168,85,247,0.18)", text: "#c084fc", dot: "#a855f7" }, // purple
   { bg: "rgba(34,197,94,0.18)", text: "#4ade80", dot: "#22c55e" }, // green
   { bg: "rgba(239,68,68,0.18)", text: "#f87171", dot: "#ef4444" }, // red
+  { bg: "rgba(20,184,166,0.18)", text: "#2dd4bf", dot: "#14b8a6" }, // teal
+  { bg: "rgba(99,102,241,0.18)", text: "#818cf8", dot: "#6366f1" }, // indigo
+  { bg: "rgba(132,204,22,0.18)", text: "#a3e635", dot: "#84cc16" }, // lime
+  { bg: "rgba(244,63,94,0.18)", text: "#fb7185", dot: "#f43f5e" }, // rose
+  { bg: "rgba(14,165,233,0.18)", text: "#38bdf8", dot: "#0ea5e9" }, // sky
+  { bg: "rgba(217,70,239,0.18)", text: "#e879f9", dot: "#d946ef" }, // fuchsia
+  { bg: "rgba(234,179,8,0.18)", text: "#fde047", dot: "#eab708" }, // yellow
+  { bg: "rgba(100,116,139,0.18)", text: "#94a3b8", dot: "#64748b" }, // slate
+  { bg: "rgba(120,113,108,0.18)", text: "#a8a29e", dot: "#78716c" }, // stone
+  { bg: "rgba(63,63,70,0.18)", text: "#a1a1aa", dot: "#3f3f46" }, // zinc
 ];
 
 // Map stages directly if they match default pipeline stages, otherwise fallback to hash
@@ -79,7 +95,11 @@ const DEFAULT_STAGE_INDEXES: Record<string, number> = {
   "offer received": 4,
 };
 
-function getStatusStyle(status: string) {
+function getStatusStyle(status: string, colorIndex?: number) {
+  if (colorIndex !== undefined && colorIndex !== null && colorIndex >= 0) {
+    return STATUS_COLOR_PALETTE[colorIndex % STATUS_COLOR_PALETTE.length];
+  }
+  
   if (!status)
     return { bg: "rgba(255,255,255,0.1)", text: "#999", dot: "#666" };
 
@@ -271,6 +291,24 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
       setFormError("Network error");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDeletePipeline(pipelineId: string) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/pipeline/details/${pipelineId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        fetchPipelines();
+        fetchLeads();
+      } else {
+        const body = await res.json();
+        alert(body.message || "Failed to delete pipeline.");
+      }
+    } catch {
+      alert("Failed to delete pipeline.");
     }
   }
 
@@ -527,6 +565,7 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                   >
                     <StatusDropdown
                       status={lead.status}
+                      colorIndex={lead.stageId?.colorIndex}
                       onChange={(s) => saveInlineEdit(lead._id, "status", s)}
                     />
                   </td>
@@ -696,6 +735,7 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
           onUpdate={(field, value) =>
             saveInlineEdit(selectedLead._id, field, value)
           }
+          onDeletePipeline={handleDeletePipeline}
         />
       )}
 
@@ -874,12 +914,14 @@ function EditableTextCell({
 // ── Status badge (now driven by pipeline stage name) ──────────────────
 function StatusDropdown({
   status,
+  colorIndex,
   onChange,
 }: {
   status: string;
+  colorIndex?: number;
   onChange: (s: string) => void;
 }) {
-  const style = getStatusStyle(status);
+  const style = getStatusStyle(status, colorIndex);
 
   return (
     <div className="relative inline-block">
@@ -956,11 +998,13 @@ function DetailPanel({
   pipelines,
   onClose,
   onUpdate,
+  onDeletePipeline,
 }: {
   lead: Lead;
   pipelines: Pipeline[];
   onClose: () => void;
   onUpdate: (field: string, value: string) => void;
+  onDeletePipeline: (pipelineId: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState<"home" | "timeline" | "tasks">(
     "home",
@@ -1013,7 +1057,7 @@ function DetailPanel({
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
         {activeTab === "home" && (
-          <HomeTab lead={lead} pipelines={pipelines} onUpdate={onUpdate} />
+          <HomeTab lead={lead} pipelines={pipelines} onUpdate={onUpdate} onDeletePipeline={onDeletePipeline} />
         )}
         {activeTab === "timeline" && (
           <div className="flex flex-1 items-center justify-center px-4 py-12">
@@ -1046,10 +1090,12 @@ function HomeTab({
   lead,
   pipelines,
   onUpdate,
+  onDeletePipeline,
 }: {
   lead: Lead;
   pipelines: Pipeline[];
   onUpdate: (field: string, value: string) => void;
+  onDeletePipeline: (pipelineId: string) => void;
 }) {
   return (
     <div className="px-4 py-4">
@@ -1073,6 +1119,7 @@ function HomeTab({
         />
         <DetailStatusRow
           status={lead.status}
+          colorIndex={lead.stageId?.colorIndex}
           onChange={(s) => onUpdate("status", s)}
         />
         <EditableDetailRow
@@ -1101,6 +1148,7 @@ function HomeTab({
           pipelineId={lead.pipelineId}
           pipelines={pipelines}
           onChange={(p) => onUpdate("pipelineId", p)}
+          onDelete={onDeletePipeline}
         />
       </div>
     </div>
@@ -1197,9 +1245,11 @@ function EditableDetailRow({
 // ── Detail Status Row (dropdown) ──────────────────────────────────────
 function DetailStatusRow({
   status,
+  colorIndex,
   onChange,
 }: {
   status: string;
+  colorIndex?: number;
   onChange: (s: string) => void;
 }) {
   return (
@@ -1209,7 +1259,7 @@ function DetailStatusRow({
         <span className="text-[12px] text-muted-foreground">Status</span>
       </div>
       <div className="flex-1">
-        <StatusDropdown status={status} onChange={onChange} />
+        <StatusDropdown status={status} colorIndex={colorIndex} onChange={onChange} />
       </div>
     </div>
   );
@@ -1220,10 +1270,12 @@ function PipelineOpportunity({
   pipelineId,
   pipelines,
   onChange,
+  onDelete,
 }: {
   pipelineId?: string;
   pipelines: Pipeline[];
   onChange: (s: string) => void;
+  onDelete: (s: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1256,22 +1308,36 @@ function PipelineOpportunity({
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 max-h-48 w-64 overflow-auto rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
           {pipelines.map((p) => (
-            <button
-              key={p._id}
-              onClick={() => {
-                onChange(p._id);
-                setOpen(false);
-              }}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
-            >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-green-500/20 text-[10px] font-bold text-green-400">
-                {p.name.charAt(0).toUpperCase()}
-              </span>
-              <span className="truncate">
-                {p.name} {p.type === "BUYER" ? "(Buyer)" : "(Seller)"}
-              </span>
-              {pipelineId === p._id && <Check className="ml-auto h-3 w-3" />}
-            </button>
+            <div key={p._id} className="group relative flex w-full items-center">
+              <button
+                onClick={() => {
+                  onChange(p._id);
+                  setOpen(false);
+                }}
+                className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground pr-8"
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-green-500/20 text-[10px] font-bold text-green-400">
+                  {p.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="truncate">
+                  {p.name} {p.type === "BUYER" ? "(Buyer)" : "(Seller)"}
+                </span>
+                {pipelineId === p._id && <Check className="ml-auto h-3 w-3" />}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm(`Are you sure you want to delete the pipeline "${p.name}"?`)) {
+                    onDelete(p._id);
+                    setOpen(false);
+                  }
+                }}
+                className="absolute right-2 hidden p-1 text-muted-foreground hover:text-red-400 group-hover:block"
+                title="Delete Pipeline"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
           ))}
         </div>
       )}

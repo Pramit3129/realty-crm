@@ -28,6 +28,19 @@ export class LeadService {
             if (!leadData.stageId) {
                 leadData.stageId = defaults[pipelineType].firstStageId;
             }
+        } else if (!leadData.stageId) {
+            const firstStage = await PipelineStage.findOne({ pipelineId: leadData.pipelineId }).sort({ stageNumber: 1 });
+            if (firstStage) {
+                leadData.stageId = firstStage._id.toString();
+            }
+        }
+
+        // Sync status with stage name if not explicitly provided
+        if (leadData.stageId && !leadData.status) {
+            const stage = await PipelineStage.findById(leadData.stageId);
+            if (stage) {
+                leadData.status = stage.name;
+            }
         }
 
         const lead = new Lead(leadData);
@@ -45,20 +58,19 @@ export class LeadService {
         }
         const roleInWorkspace = membership.role;
         if (roleInWorkspace === "OWNER") {
-            const leadDetails: IleadOverView[] = await Lead.find({ workspaceId })
-                .select("name email phone city status source pipelineId stageId createdAt updatedAt _id")
+            return await Lead.find({ workspaceId })
+                .populate("stageId", "colorIndex name")
                 .lean();
-            return leadDetails;
         }
-        const leadDetails: IleadOverView[] = await Lead.find({ workspaceId, realtorId })
-            .select("name email phone city status source pipelineId stageId createdAt updatedAt _id")
+        return await Lead.find({ workspaceId, realtorId })
+            .populate("stageId", "colorIndex name")
             .lean();
-            
-        return leadDetails;
     }
 
     static async getLeadDetails(realtorId: string, leadId: string) {
-        return await Lead.findOne({ realtorId, _id: leadId }).lean();
+        return await Lead.findOne({ realtorId, _id: leadId })
+            .populate("stageId", "colorIndex name")
+            .lean();
     }
 
     static async updateLead(realtorId: string, leadId: string, leadData: ILeadUpdate) {
@@ -76,7 +88,7 @@ export class LeadService {
             { realtorId, _id: leadId },
             leadData,
             { new: true, runValidators: true }
-        ).lean();
+        ).populate("stageId", "colorIndex name").lean();
     }
 
     static async deleteLead(realtorId: string, leadId: string) {
@@ -102,14 +114,36 @@ export class LeadService {
             defaultStageId = defaults.buyer.firstStageId?.toString();
         }
 
-        const newLeads: ILeadCreate[] = leads.map((lead) => ({
-            ...lead,
-            realtorId: realtorId,
-            workspaceId: workspaceId,
-            pipelineId: lead.pipelineId || defaultPipelineId,
-            stageId: lead.stageId || defaultStageId,
-            campaignId: campaignId,
-        }));
+        const newLeads: ILeadCreate[] = [];
+        for (const lead of leads) {
+            let assignedPipelineId = lead.pipelineId || defaultPipelineId;
+            let assignedStageId = lead.stageId || defaultStageId;
+
+            if (assignedPipelineId && !assignedStageId) {
+                const firstStage = await PipelineStage.findOne({ pipelineId: assignedPipelineId }).sort({ stageNumber: 1 });
+                if (firstStage) {
+                    assignedStageId = firstStage._id.toString();
+                }
+            }
+
+            let assignedStatus = lead.status;
+            if (assignedStageId && !assignedStatus) {
+                const stage = await PipelineStage.findById(assignedStageId);
+                if (stage) {
+                    assignedStatus = stage.name;
+                }
+            }
+
+            newLeads.push({
+                ...lead,
+                realtorId: realtorId,
+                workspaceId: workspaceId,
+                pipelineId: assignedPipelineId,
+                stageId: assignedStageId,
+                status: assignedStatus || lead.status || "New Inquiry",
+                campaignId: campaignId,
+            } as any);
+        }
 
         const insertedLeads = await Lead.insertMany(newLeads);
         return insertedLeads;

@@ -23,6 +23,7 @@ import {
   MoreHorizontal,
   User,
   Kanban,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ interface KanbanStage {
   stageNumber: number;
   probability: number;
   isFinal: boolean;
+  colorIndex?: number;
   leads: Lead[];
 }
 
@@ -73,6 +75,16 @@ const STAGE_COLORS = [
   { bg: "rgba(168,85,247,0.18)", text: "#c084fc", border: "#a855f7" }, // purple
   { bg: "rgba(34,197,94,0.18)", text: "#4ade80", border: "#22c55e" }, // green
   { bg: "rgba(239,68,68,0.18)", text: "#f87171", border: "#ef4444" }, // red
+  { bg: "rgba(20,184,166,0.18)", text: "#2dd4bf", border: "#14b8a6" }, // teal
+  { bg: "rgba(99,102,241,0.18)", text: "#818cf8", border: "#6366f1" }, // indigo
+  { bg: "rgba(132,204,22,0.18)", text: "#a3e635", border: "#84cc16" }, // lime
+  { bg: "rgba(244,63,94,0.18)", text: "#fb7185", border: "#f43f5e" }, // rose
+  { bg: "rgba(14,165,233,0.18)", text: "#38bdf8", border: "#0ea5e9" }, // sky
+  { bg: "rgba(217,70,239,0.18)", text: "#e879f9", border: "#d946ef" }, // fuchsia
+  { bg: "rgba(234,179,8,0.18)", text: "#fde047", border: "#eab708" }, // yellow
+  { bg: "rgba(100,116,139,0.18)", text: "#94a3b8", border: "#64748b" }, // slate
+  { bg: "rgba(120,113,108,0.18)", text: "#a8a29e", border: "#78716c" }, // stone
+  { bg: "rgba(63,63,70,0.18)", text: "#a1a1aa", border: "#3f3f46" }, // zinc
 ];
 
 // ── Source icon colors ────────────────────────────────────────────────
@@ -218,6 +230,29 @@ export default function PipelineView({ workspaceId }: PipelineViewProps) {
   useEffect(() => {
     fetchKanbanBoard();
   }, [fetchKanbanBoard]);
+
+  // ── Delete Pipeline ─────────────────────────────────────────────────
+  async function handleDeletePipeline(pipelineId: string) {
+    if (!window.confirm("Are you sure you want to delete this pipeline?")) return;
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/pipeline/details/${pipelineId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        if (activePipeline?._id === pipelineId) {
+          setActivePipeline(null);
+        }
+        fetchPipelines();
+      } else {
+        const body = await res.json();
+        alert(body.message || "Failed to delete pipeline.");
+      }
+    } catch {
+      alert("Failed to delete pipeline.");
+    }
+  }
 
   // Keep selected lead in sync
   useEffect(() => {
@@ -412,28 +447,40 @@ export default function PipelineView({ workspaceId }: PipelineViewProps) {
               {pipelineDropdownOpen && (
                 <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
                   {pipelines.map((p) => (
-                    <button
-                      key={p._id}
-                      onClick={() => {
-                        setActivePipeline(p);
-                        setPipelineDropdownOpen(false);
-                      }}
-                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] transition-colors hover:bg-white/[0.06] ${
-                        activePipeline?._id === p._id
-                          ? "text-foreground"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-2 w-2 rounded-full ${
-                          p.type === "BUYER" ? "bg-blue-500" : "bg-emerald-500"
+                    <div key={p._id} className="group relative flex w-full items-center">
+                      <button
+                        onClick={() => {
+                          setActivePipeline(p);
+                          setPipelineDropdownOpen(false);
+                        }}
+                        className={`flex flex-1 items-center gap-2 px-3 py-2 text-left text-[12px] transition-colors hover:bg-white/[0.06] pr-8 ${
+                          activePipeline?._id === p._id
+                            ? "text-foreground"
+                            : "text-muted-foreground"
                         }`}
-                      />
-                      {p.name}
-                      <span className="ml-auto text-[10px] uppercase text-muted-foreground/50">
-                        {p.type}
-                      </span>
-                    </button>
+                      >
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${
+                            p.type === "BUYER" ? "bg-blue-500" : "bg-emerald-500"
+                          }`}
+                        />
+                        <span className="truncate">{p.name}</span>
+                        <span className="ml-auto text-[10px] uppercase text-muted-foreground/50">
+                          {p.type}
+                        </span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePipeline(p._id);
+                          setPipelineDropdownOpen(false);
+                        }}
+                        className="absolute right-2 hidden p-1 text-muted-foreground hover:text-red-400 group-hover:block"
+                        title="Delete Pipeline"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   ))}
 
                   {/* Divider */}
@@ -582,7 +629,7 @@ export default function PipelineView({ workspaceId }: PipelineViewProps) {
         ) : (
           <div className="flex flex-1 gap-0 overflow-x-auto overflow-y-hidden px-0 py-0 pb-2">
             {stages.map((stage, idx) => {
-              const color = STAGE_COLORS[idx % STAGE_COLORS.length];
+              const color = STAGE_COLORS[stage.colorIndex ?? (idx % STAGE_COLORS.length)];
               const filteredLeads = getFilteredLeads(stage.leads);
               const isDragOver = dragOverStageId === stage._id;
 
@@ -835,7 +882,7 @@ function LeadDetailPanel({
     }
   }
   const stageIdx = 0;
-  const color = STAGE_COLORS[stageIdx % STAGE_COLORS.length];
+  const color = STAGE_COLORS[stage.colorIndex ?? (stageIdx % STAGE_COLORS.length)];
 
   const tabs = [
     { key: "home" as const, label: "Home" },
@@ -1064,27 +1111,27 @@ function DetailRow({
 // ══════════════════════════════════════════════════════════════════════
 
 const DEFAULT_BUYER_STAGES = [
-  { name: "New Inquiry", probability: 10 },
-  { name: "Contacted", probability: 15 },
-  { name: "Qualified", probability: 25 },
-  { name: "Active Search", probability: 35 },
-  { name: "Showing Scheduled", probability: 45 },
-  { name: "Offer Preparing", probability: 55 },
-  { name: "Offer Submitted", probability: 70 },
-  { name: "Under Contract", probability: 85 },
-  { name: "Closed Won", probability: 100 },
-  { name: "Lost", probability: 0 },
+  { name: "New Inquiry", probability: 10, colorIndex: 0 },
+  { name: "Contacted", probability: 15, colorIndex: 1 },
+  { name: "Qualified", probability: 25, colorIndex: 2 },
+  { name: "Active Search", probability: 35, colorIndex: 3 },
+  { name: "Showing Scheduled", probability: 45, colorIndex: 4 },
+  { name: "Offer Preparing", probability: 55, colorIndex: 5 },
+  { name: "Offer Submitted", probability: 70, colorIndex: 6 },
+  { name: "Under Contract", probability: 85, colorIndex: 7 },
+  { name: "Closed Won", probability: 100, colorIndex: 8 },
+  { name: "Lost", probability: 0, colorIndex: 9 },
 ];
 
 const DEFAULT_SELLER_STAGES = [
-  { name: "New Inquiry", probability: 10 },
-  { name: "Consultation Scheduled", probability: 20 },
-  { name: "Listing Agreement Signed", probability: 35 },
-  { name: "Property Live", probability: 50 },
-  { name: "Offer Received", probability: 65 },
-  { name: "Under Contract", probability: 85 },
-  { name: "Closed Won", probability: 100 },
-  { name: "Lost", probability: 0 },
+  { name: "New Inquiry", probability: 10, colorIndex: 0 },
+  { name: "Consultation Scheduled", probability: 20, colorIndex: 1 },
+  { name: "Listing Agreement Signed", probability: 35, colorIndex: 2 },
+  { name: "Property Live", probability: 50, colorIndex: 3 },
+  { name: "Offer Received", probability: 65, colorIndex: 4 },
+  { name: "Under Contract", probability: 85, colorIndex: 7 },
+  { name: "Closed Won", probability: 100, colorIndex: 8 },
+  { name: "Lost", probability: 0, colorIndex: 9 },
 ];
 
 function CreatePipelineModal({
@@ -1099,10 +1146,11 @@ function CreatePipelineModal({
   const [pipelineName, setPipelineName] = useState("");
   const [pipelineType, setPipelineType] = useState<"BUYER" | "SELLER">("BUYER");
   const [stages, setStages] = useState(
-    DEFAULT_BUYER_STAGES.map((s) => ({ ...s })),
+    DEFAULT_BUYER_STAGES.map((s) => ({ ...s, id: Math.random().toString() })),
   );
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [openColorPicker, setOpenColorPicker] = useState<string | null>(null);
   const token = getToken();
 
   // Update stages when type changes
@@ -1110,26 +1158,34 @@ function CreatePipelineModal({
     setPipelineType(type);
     setStages(
       (type === "BUYER" ? DEFAULT_BUYER_STAGES : DEFAULT_SELLER_STAGES).map(
-        (s) => ({ ...s }),
+        (s) => ({ ...s, id: Math.random().toString() }),
       ),
     );
   }
 
   function addStage() {
-    setStages((prev) => [...prev, { name: "", probability: 0 }]);
+    setStages((prev) => [
+      ...prev,
+      {
+        id: Math.random().toString(),
+        name: "",
+        probability: 0,
+        colorIndex: prev.length % STAGE_COLORS.length,
+      },
+    ]);
   }
 
-  function removeStage(idx: number) {
-    setStages((prev) => prev.filter((_, i) => i !== idx));
+  function removeStage(id: string) {
+    setStages((prev) => prev.filter((s) => s.id !== id));
   }
 
   function updateStage(
-    idx: number,
-    field: "name" | "probability",
+    id: string,
+    field: "name" | "probability" | "colorIndex",
     value: string | number,
   ) {
     setStages((prev) =>
-      prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s)),
+      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
     );
   }
 
@@ -1149,7 +1205,7 @@ function CreatePipelineModal({
     setError("");
 
     try {
-      // 1. Create the pipeline
+      // 1. Create the pipeline with stages
       const pipelineRes = await fetch(`${API_BASE_URL}/pipeline/create`, {
         method: "POST",
         headers: {
@@ -1160,41 +1216,23 @@ function CreatePipelineModal({
           name: pipelineName.trim(),
           type: pipelineType,
           workspaceId,
+          stages: validStages.map((s) => ({
+            name: s.name.trim(),
+            probability: s.probability,
+            colorIndex: s.colorIndex,
+          })),
         }),
       });
 
-      if (!pipelineRes.ok) throw new Error("Failed to create pipeline");
+      if (!pipelineRes.ok) {
+        const errData = await pipelineRes.json();
+        throw new Error(errData.error || errData.message || "Failed to create pipeline");
+      }
       const pipeline: Pipeline = await pipelineRes.json();
 
-      // 2. Create all stages
-      for (let i = 0; i < validStages.length; i++) {
-        const stage = validStages[i];
-        const isLast = stage.name.toLowerCase() === "lost";
-        const isWon =
-          stage.name.toLowerCase().includes("closed") ||
-          stage.name.toLowerCase().includes("won");
-
-        await fetch(`${API_BASE_URL}/pipeline-stage`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: stage.name.trim(),
-            description: "",
-            pipelineId: pipeline._id,
-            workspaceId,
-            stageNumber: i + 1,
-            probability: stage.probability,
-            isFinal: isLast || isWon,
-          }),
-        });
-      }
-
       onCreated(pipeline);
-    } catch {
-      setError("Failed to create pipeline. Please try again.");
+    } catch (e: any) {
+      setError(e.message || "Failed to create pipeline. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -1262,44 +1300,90 @@ function CreatePipelineModal({
               Stages ({stages.length})
             </label>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {stages.map((stage, idx) => (
                 <div
-                  key={idx}
-                  className="group flex items-center gap-2 rounded-lg border border-white/[0.04] bg-white/[0.02] px-3 py-2"
+                  key={stage.id}
+                  className="group flex items-center gap-3 rounded-xl border border-white/[0.04] bg-white/[0.03] p-2 pl-3 transition-all hover:bg-white/[0.05]"
                 >
-                  <span className="w-5 text-center text-[10px] text-muted-foreground/40">
-                    {idx + 1}
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Stage name"
-                    value={stage.name}
-                    onChange={(e) => updateStage(idx, "name", e.target.value)}
-                    className="h-6 flex-1 border-0 bg-transparent text-[12px] text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={stage.probability}
-                    onChange={(e) =>
-                      updateStage(
-                        idx,
-                        "probability",
-                        parseInt(e.target.value) || 0,
-                      )
-                    }
-                    className="h-6 w-12 rounded border border-white/[0.06] bg-white/[0.03] px-1.5 text-center text-[11px] text-muted-foreground focus:outline-none"
-                  />
-                  <span className="text-[10px] text-muted-foreground/40">
-                    %
-                  </span>
+                  {/* Color Selector */}
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        const nextId = openColorPicker === stage.id ? null : stage.id;
+                        setOpenColorPicker(nextId);
+                      }}
+                      className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.02] transition-colors hover:bg-white/[0.06]"
+                    >
+                      <div
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: STAGE_COLORS[stage.colorIndex ?? 0].border }}
+                      />
+                    </button>
+                    
+                    {openColorPicker === stage.id && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-[120]" 
+                          onClick={() => setOpenColorPicker(null)} 
+                        />
+                        <div className="absolute left-0 top-full z-[130] mt-2 grid w-[156px] grid-cols-5 gap-1.5 rounded-xl border border-white/[0.1] bg-[#1a1a1a] p-2 shadow-2xl">
+                          {STAGE_COLORS.map((c, ci) => (
+                            <button
+                              key={ci}
+                              onClick={() => {
+                                updateStage(stage.id, "colorIndex", ci);
+                                setOpenColorPicker(null);
+                              }}
+                              className={`group/c relative flex h-6 w-6 items-center justify-center rounded-lg transition-all hover:scale-110 ${stage.colorIndex === ci ? "bg-white/[0.1] ring-1 ring-white/20" : "hover:bg-white/[0.05]"}`}
+                            >
+                              <div
+                                className="h-3.5 w-3.5 rounded-full"
+                                style={{ backgroundColor: c.border }}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Name Input */}
+                  <div className="flex flex-1 items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Stage name"
+                      value={stage.name}
+                      onChange={(e) => updateStage(stage.id, "name", e.target.value)}
+                      className="h-7 min-w-0 flex-1 border-0 bg-transparent text-[13px] font-medium text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Probability */}
+                  <div className="flex items-center gap-1 rounded-lg border border-white/[0.04] bg-black/20 px-2 py-0.5">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={stage.probability}
+                      onChange={(e) =>
+                        updateStage(
+                          stage.id,
+                          "probability",
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
+                      className="h-5 w-8 border-0 bg-transparent text-center text-[12px] font-semibold text-foreground/80 focus:outline-none"
+                    />
+                    <span className="text-[10px] font-bold text-muted-foreground/30">%</span>
+                  </div>
+
+                  {/* Delete */}
                   <button
-                    onClick={() => removeStage(idx)}
-                    className="rounded p-0.5 text-muted-foreground/30 opacity-0 transition-colors hover:text-red-400 group-hover:opacity-100"
+                    onClick={() => removeStage(stage.id)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/30 transition-colors hover:bg-white/[0.05] hover:text-red-400 group-hover:opacity-100"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
@@ -1307,7 +1391,7 @@ function CreatePipelineModal({
 
             <button
               onClick={addStage}
-              className="mt-2 flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] text-muted-foreground/50 transition-colors hover:bg-white/[0.03] hover:text-muted-foreground"
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/[0.08] py-2 text-[11px] text-muted-foreground transition-colors hover:border-white/[0.15] hover:bg-white/[0.02] hover:text-foreground"
             >
               <Plus className="h-3 w-3" />
               Add Stage

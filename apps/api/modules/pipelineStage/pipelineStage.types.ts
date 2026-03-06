@@ -3,24 +3,26 @@ import { z } from "zod";
 
 export interface IPipelineStage {
     name: string;
-    description: string;
+    description?: string;
     pipelineId: Types.ObjectId;
     workspaceId: Types.ObjectId;
     stageNumber: number;
     probability: number;
     isFinal: boolean;
+    colorIndex: number;
 }
 
 // ── Zod Schemas ───────────────────────────────────────────────────────
 
 export const createPipelineStageSchema = z.object({
     name: z.string(),
-    description: z.string(),
+    description: z.string().optional(),
     pipelineId: z.string(),
     workspaceId: z.string(),
     stageNumber: z.number(),
     probability: z.number().min(0).max(100),
     isFinal: z.boolean().optional().default(false),
+    colorIndex: z.number().optional().default(0),
 });
 
 export const updatePipelineStageSchema = z.object({

@@ -8,7 +8,6 @@ const pipelineStageSchema = new mongoose.Schema<IPipelineStage>({
     },
     description: {
         type: String,
-        required: true
     },
     pipelineId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -31,6 +30,10 @@ const pipelineStageSchema = new mongoose.Schema<IPipelineStage>({
     isFinal: {
         type: Boolean,
         default: false
+    },
+    colorIndex: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true,

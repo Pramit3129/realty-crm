@@ -1,28 +1,28 @@
 import { Pipeline } from "./pipeline.model";
 import { PipelineStage } from "../pipelineStage/pipelineStage.model";
 
-const BUYER_STAGES = [
-    { name: "New Inquiry", description: "Lead has just come in", probability: 10 },
-    { name: "Contacted", description: "Initial contact has been made", probability: 15 },
-    { name: "Qualified", description: "Lead is qualified and ready to proceed", probability: 25 },
-    { name: "Active Search", description: "Actively searching for properties", probability: 35 },
-    { name: "Showing Scheduled", description: "Property showings have been scheduled", probability: 45 },
-    { name: "Offer Preparing", description: "Preparing an offer for the property", probability: 55 },
-    { name: "Offer Submitted", description: "An offer has been submitted", probability: 70 },
-    { name: "Under Contract", description: "Deal is under contract", probability: 85 },
-    { name: "Closed Won", description: "Deal has been closed successfully", probability: 100, isFinal: true },
-    { name: "Lost", description: "Lead was lost", probability: 0, isFinal: true },
+export const BUYER_STAGES = [
+    { name: "New Inquiry", description: "Lead has just come in", probability: 10, colorIndex: 0 },
+    { name: "Contacted", description: "Initial contact has been made", probability: 15, colorIndex: 1 },
+    { name: "Qualified", description: "Lead is qualified and ready to proceed", probability: 25, colorIndex: 2 },
+    { name: "Active Search", description: "Actively searching for properties", probability: 35, colorIndex: 3 },
+    { name: "Showing Scheduled", description: "Property showings have been scheduled", probability: 45, colorIndex: 4 },
+    { name: "Offer Preparing", description: "Preparing an offer for the property", probability: 55, colorIndex: 5 },
+    { name: "Offer Submitted", description: "An offer has been submitted", probability: 70, colorIndex: 6 },
+    { name: "Under Contract", description: "Deal is under contract", probability: 85, colorIndex: 7 },
+    { name: "Closed Won", description: "Deal has been closed successfully", probability: 100, isFinal: true, colorIndex: 8 },
+    { name: "Lost", description: "Lead was lost", probability: 0, isFinal: true, colorIndex: 9 },
 ];
 
-const SELLER_STAGES = [
-    { name: "New Inquiry", description: "New seller inquiry received", probability: 10 },
-    { name: "Consultation Scheduled", description: "Consultation meeting has been scheduled", probability: 20 },
-    { name: "Listing Agreement Signed", description: "Listing agreement has been signed", probability: 35 },
-    { name: "Property Live", description: "Property is live on the market", probability: 50 },
-    { name: "Offer Received", description: "An offer has been received", probability: 65 },
-    { name: "Under Contract", description: "Deal is under contract", probability: 85 },
-    { name: "Closed Won", description: "Deal has been closed successfully", probability: 100, isFinal: true },
-    { name: "Lost", description: "Listing was lost", probability: 0, isFinal: true },
+export const SELLER_STAGES = [
+    { name: "New Inquiry", description: "New seller inquiry received", probability: 10, colorIndex: 0 },
+    { name: "Consultation Scheduled", description: "Consultation meeting has been scheduled", probability: 20, colorIndex: 1 },
+    { name: "Listing Agreement Signed", description: "Listing agreement has been signed", probability: 35, colorIndex: 2 },
+    { name: "Property Live", description: "Property is live on the market", probability: 50, colorIndex: 3 },
+    { name: "Offer Received", description: "An offer has been received", probability: 65, colorIndex: 4 },
+    { name: "Under Contract", description: "Deal is under contract", probability: 85, colorIndex: 7 },
+    { name: "Closed Won", description: "Deal has been closed successfully", probability: 100, isFinal: true, colorIndex: 8 },
+    { name: "Lost", description: "Listing was lost", probability: 0, isFinal: true, colorIndex: 9 },
 ];
 
 /**
@@ -48,6 +48,7 @@ export async function ensureDefaultPipelines(workspaceId: string, realtorId: str
                 workspaceId,
                 stageNumber: index + 1,
                 isFinal: stage.isFinal ?? false,
+                colorIndex: stage.colorIndex ?? (index % 10),
             }))
         );
     }
@@ -66,6 +67,7 @@ export async function ensureDefaultPipelines(workspaceId: string, realtorId: str
                 workspaceId,
                 stageNumber: index + 1,
                 isFinal: stage.isFinal ?? false,
+                colorIndex: stage.colorIndex ?? (index % 10),
             }))
         );
     }

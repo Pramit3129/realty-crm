@@ -13,6 +13,11 @@ export const createPipelineSchema = z.object({
     name: z.string(),
     type: z.enum(["BUYER", "SELLER"]),
     workspaceId: z.string(),
+    stages: z.array(z.object({
+        name: z.string(),
+        probability: z.number(),
+        colorIndex: z.number().optional().default(0),
+    })).optional(),
 })
 
 export const updatePipelineSchema = z.object({

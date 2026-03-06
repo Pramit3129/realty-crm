@@ -26,6 +26,7 @@ export interface ILeadCreate {
     stageId?: Types.ObjectId | string;
     campaignId?: Types.ObjectId | string;
     type?: "BUYER" | "SELLER";
+    status?: string;
 }
 
 export interface IleadOverView {
