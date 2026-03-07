@@ -99,7 +99,7 @@ function getStatusStyle(status: string, colorIndex?: number) {
   if (colorIndex !== undefined && colorIndex !== null && colorIndex >= 0) {
     return STATUS_COLOR_PALETTE[colorIndex % STATUS_COLOR_PALETTE.length];
   }
-  
+
   if (!status)
     return { bg: "rgba(255,255,255,0.1)", text: "#999", dot: "#666" };
 
@@ -296,10 +296,13 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
 
   async function handleDeletePipeline(pipelineId: string) {
     try {
-      const res = await fetch(`${API_BASE_URL}/pipeline/details/${pipelineId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/pipeline/details/${pipelineId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
         fetchPipelines();
         fetchLeads();
@@ -730,6 +733,7 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
       {selectedLead && (
         <DetailPanel
           lead={selectedLead}
+          workspaceId={workspaceId}
           pipelines={pipelines}
           onClose={() => setSelectedLead(null)}
           onUpdate={(field, value) =>
@@ -995,23 +999,26 @@ function CountryCodeSelect({
 // ── Detail Panel ──────────────────────────────────────────────────────
 function DetailPanel({
   lead,
+  workspaceId,
   pipelines,
   onClose,
   onUpdate,
   onDeletePipeline,
 }: {
   lead: Lead;
+  workspaceId: string;
   pipelines: Pipeline[];
   onClose: () => void;
   onUpdate: (field: string, value: string) => void;
   onDeletePipeline: (pipelineId: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"home" | "timeline" | "tasks">(
-    "home",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "home" | "timeline" | "tasks" | "notes"
+  >("home");
 
   const tabs = [
     { key: "home" as const, label: "Home" },
+    { key: "notes" as const, label: "Notes" },
     { key: "timeline" as const, label: "Timeline" },
     { key: "tasks" as const, label: "Tasks" },
   ];
@@ -1057,7 +1064,15 @@ function DetailPanel({
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
         {activeTab === "home" && (
-          <HomeTab lead={lead} pipelines={pipelines} onUpdate={onUpdate} onDeletePipeline={onDeletePipeline} />
+          <HomeTab
+            lead={lead}
+            pipelines={pipelines}
+            onUpdate={onUpdate}
+            onDeletePipeline={onDeletePipeline}
+          />
+        )}
+        {activeTab === "notes" && (
+          <NotesTab lead={lead} workspaceId={workspaceId} />
         )}
         {activeTab === "timeline" && (
           <div className="flex flex-1 items-center justify-center px-4 py-12">
@@ -1259,7 +1274,11 @@ function DetailStatusRow({
         <span className="text-[12px] text-muted-foreground">Status</span>
       </div>
       <div className="flex-1">
-        <StatusDropdown status={status} colorIndex={colorIndex} onChange={onChange} />
+        <StatusDropdown
+          status={status}
+          colorIndex={colorIndex}
+          onChange={onChange}
+        />
       </div>
     </div>
   );
@@ -1308,7 +1327,10 @@ function PipelineOpportunity({
       {open && (
         <div className="absolute left-0 top-full z-50 mt-1 max-h-48 w-64 overflow-auto rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
           {pipelines.map((p) => (
-            <div key={p._id} className="group relative flex w-full items-center">
+            <div
+              key={p._id}
+              className="group relative flex w-full items-center"
+            >
               <button
                 onClick={() => {
                   onChange(p._id);
@@ -1327,7 +1349,11 @@ function PipelineOpportunity({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm(`Are you sure you want to delete the pipeline "${p.name}"?`)) {
+                  if (
+                    confirm(
+                      `Are you sure you want to delete the pipeline "${p.name}"?`,
+                    )
+                  ) {
                     onDelete(p._id);
                     setOpen(false);
                   }
@@ -1380,7 +1406,9 @@ function CsvUploadModal({
         const leads = rows
           .map((r: any) => {
             const getVal = (key: string) => {
-              const foundKey = Object.keys(r).find((k) => k.toLowerCase() === key.toLowerCase());
+              const foundKey = Object.keys(r).find(
+                (k) => k.toLowerCase() === key.toLowerCase(),
+              );
               return foundKey ? r[foundKey]?.trim() : "";
             };
             return {
@@ -1395,7 +1423,9 @@ function CsvUploadModal({
           .filter((l) => l.name); // only keep leads that have at least a name
 
         if (leads.length === 0) {
-          setError("No valid leads found. Please ensure your CSV has a 'name' column.");
+          setError(
+            "No valid leads found. Please ensure your CSV has a 'name' column.",
+          );
           setUploading(false);
           return;
         }
@@ -1429,7 +1459,7 @@ function CsvUploadModal({
       error: (err: any) => {
         setError("Failed to parse CSV file: " + err.message);
         setUploading(false);
-      }
+      },
     });
   }
 
@@ -1437,30 +1467,48 @@ function CsvUploadModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#121212] p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Batch Record Add</h2>
-          <button onClick={onClose} className="text-muted-foreground transition hover:text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
+            Batch Record Add
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground transition hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
-        
+
         <div className="mb-6 space-y-4">
           <p className="text-sm text-muted-foreground">
             Upload a CSV file to import multiple leads at once.
           </p>
           <div className="rounded-lg border border-white/[0.04] bg-white/[0.02] p-4">
-            <p className="mb-2 text-xs font-medium text-foreground">Required CSV Format:</p>
+            <p className="mb-2 text-xs font-medium text-foreground">
+              Required CSV Format:
+            </p>
             <div className="flex flex-wrap gap-2 font-mono text-[11px] text-muted-foreground">
-              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">name</span>
-              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">email</span>
-              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">phone</span>
-              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">city</span>
-              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">source</span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
+                name
+              </span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
+                email
+              </span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
+                phone
+              </span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
+                city
+              </span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
+                source
+              </span>
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground/60">
-              Only 'name' is strictly required, but including headers is mandatory.
+              Only 'name' is strictly required, but including headers is
+              mandatory.
             </p>
           </div>
-          
+
           <div className="flex flex-col gap-2">
             <input
               type="file"
@@ -1502,6 +1550,163 @@ function CsvUploadModal({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+// ── Notes tab content ─────────────────────────────────────────────────
+function NotesTab({ lead, workspaceId }: { lead: Lead; workspaceId: string }) {
+  const [notes, setNotes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newNoteBody, setNewNoteBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const token = getToken();
+
+  const fetchNotes = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/note/lead/${lead._id}/workspace/${workspaceId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setNotes(data.notes || []);
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setLoading(false);
+    }
+  }, [lead._id, workspaceId, token]);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
+
+  async function handleAddNote() {
+    if (!newNoteBody.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/note/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: "Untitled",
+          body: newNoteBody.trim(),
+          relations: [lead._id],
+          workspaceId,
+        }),
+      });
+      if (res.ok) {
+        setNewNoteBody("");
+        setIsAdding(false);
+        fetchNotes();
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="px-4 py-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-semibold text-foreground">
+          All{" "}
+          <span className="ml-1 text-muted-foreground/60">{notes.length}</span>
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setIsAdding(true)}
+          className="h-6 gap-1 px-2 text-[10px] border-white/[0.08] hover:bg-white/[0.04]"
+        >
+          <Plus className="h-2.5 w-2.5" />
+          Add note
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {loading ? (
+          <p className="text-xs text-muted-foreground/40 text-center py-4">
+            Loading notes...
+          </p>
+        ) : notes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/[0.08] p-8 text-center">
+            <p className="text-[11px] text-muted-foreground/40">
+              No notes for this lead
+            </p>
+          </div>
+        ) : (
+          notes.map((note) => (
+            <div
+              key={note._id}
+              className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 space-y-2"
+            >
+              <p className="text-[12px] text-foreground leading-relaxed whitespace-pre-wrap break-all">
+                {note.body}
+              </p>
+              <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
+                <div className="flex items-center gap-1.5">
+                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-gray-500/20 text-[8px] font-bold text-gray-400">
+                    {note.realtorId.name.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/60">
+                    {note.realtorId.name}
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground/40">
+                  {timeAgo(note.createdAt)}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {isAdding && (
+        <div className="relative pt-2 space-y-2">
+          <textarea
+            placeholder="Type a note..."
+            value={newNoteBody}
+            onChange={(e) => setNewNoteBody(e.target.value)}
+            className="w-full min-h-[100px] rounded-lg border border-white/[0.08] bg-white/[0.04] p-3 text-[12px] outline-none placeholder:text-muted-foreground/40 focus:border-white/10"
+            autoFocus
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground/30">
+              Markdown supported
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setNewNoteBody("");
+                  setIsAdding(false);
+                }}
+                className="h-7 text-[11px] hover:bg-white/[0.04]"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAddNote}
+                disabled={submitting || !newNoteBody.trim()}
+                className="h-7 text-[11px]"
+              >
+                {submitting ? "Saving..." : "Save Note"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

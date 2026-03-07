@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, ChevronDown, LogOut, Sun, Moon, Kanban } from "lucide-react";
+import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -15,14 +15,15 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 // ── Props ─────────────────────────────────────────────────────────────
 interface SidebarProps {
   workspaceName: string;
-  activeView: "leads" | "pipeline";
-  onViewChange: (view: "leads" | "pipeline") => void;
+  activeView: "leads" | "pipeline" | "notes";
+  onViewChange: (view: "leads" | "pipeline" | "notes") => void;
 }
 
 // ── Nav items config ──────────────────────────────────────────────────
 const NAV_ITEMS = [
   { key: "leads" as const, label: "Leads", icon: Users },
   { key: "pipeline" as const, label: "Pipeline", icon: Kanban },
+  { key: "notes" as const, label: "Notes", icon: StickyNote },
 ] as const;
 
 // ── Sidebar Component ─────────────────────────────────────────────────
