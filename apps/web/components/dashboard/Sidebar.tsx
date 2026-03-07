@@ -1,6 +1,7 @@
 "use client";
 
-import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote } from "lucide-react";
+import { useState } from "react";
+import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -12,19 +13,45 @@ import {
 import { clearToken } from "@/lib/auth";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
+// ── Types ─────────────────────────────────────────────────────────────
+export type ActiveViewType = 
+  | "leads" 
+  | "pipeline" 
+  | "notes" 
+  | "tasks-all" 
+  | "tasks-status" 
+  | "tasks-me";
+
 // ── Props ─────────────────────────────────────────────────────────────
 interface SidebarProps {
   workspaceName: string;
-  activeView: "leads" | "pipeline" | "notes";
-  onViewChange: (view: "leads" | "pipeline" | "notes") => void;
+  activeView: ActiveViewType;
+  onViewChange: (view: ActiveViewType) => void;
 }
 
 // ── Nav items config ──────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { key: "leads" as const, label: "Leads", icon: Users },
-  { key: "pipeline" as const, label: "Pipeline", icon: Kanban },
-  { key: "notes" as const, label: "Notes", icon: StickyNote },
-] as const;
+type NavItem = {
+  key: ActiveViewType | "tasks";
+  label: string;
+  icon: any;
+  subItems?: { key: ActiveViewType; label: string; icon: any }[];
+};
+
+const NAV_ITEMS: NavItem[] = [
+  { key: "leads", label: "Leads", icon: Users },
+  { key: "pipeline", label: "Pipeline", icon: Kanban },
+  { key: "notes", label: "Notes", icon: StickyNote },
+  { 
+    key: "tasks", 
+    label: "Tasks", 
+    icon: CheckSquare,
+    subItems: [
+      { key: "tasks-all", label: "All Tasks", icon: ListTodo },
+      { key: "tasks-status", label: "By Status", icon: Columns3 },
+      { key: "tasks-me", label: "Assigned to Me", icon: UserSquare2 },
+    ]
+  },
+];
 
 // ── Sidebar Component ─────────────────────────────────────────────────
 
@@ -35,6 +62,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const [tasksExpanded, setTasksExpanded] = useState(true);
 
   function handleLogout() {
     clearToken();
@@ -89,20 +117,60 @@ export default function Sidebar({
 
       {/* ── Nav items ─────────────────────────────────────────────── */}
       <nav className="flex flex-col gap-0.5 px-2">
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => onViewChange(item.key)}
-            className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
-              activeView === item.key
-                ? "bg-white/[0.06] text-sidebar-foreground"
-                : "text-muted-foreground hover:bg-white/[0.04] hover:text-sidebar-foreground"
-            }`}
-          >
-            <item.icon className="h-4 w-4" />
-            <span>{item.label}</span>
-          </button>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          if (item.subItems) {
+            const isActiveParent = activeView.startsWith("tasks-");
+            return (
+              <div key={item.key} className="flex flex-col gap-0.5">
+                <button
+                  onClick={() => setTasksExpanded(!tasksExpanded)}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                    isActiveParent
+                      ? "bg-white/[0.06] text-sidebar-foreground"
+                      : "text-muted-foreground hover:bg-white/[0.04] hover:text-sidebar-foreground"
+                  }`}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span className="flex-1 text-left">{item.label}</span>
+                  <ChevronDown className={`h-3 w-3 transition-transform ${tasksExpanded ? "" : "-rotate-90"}`} />
+                </button>
+                {tasksExpanded && (
+                  <div className="mt-0.5 flex flex-col gap-0.5 pl-6">
+                    {item.subItems.map((subItem) => (
+                      <button
+                        key={subItem.key}
+                        onClick={() => onViewChange(subItem.key as ActiveViewType)}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                          activeView === subItem.key
+                            ? "bg-white/[0.06] text-sidebar-foreground"
+                            : "text-muted-foreground hover:bg-white/[0.04] hover:text-sidebar-foreground"
+                        }`}
+                      >
+                        <subItem.icon className="h-4 w-4 opacity-70" />
+                        <span>{subItem.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={item.key}
+              onClick={() => onViewChange(item.key as ActiveViewType)}
+              className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                activeView === item.key
+                  ? "bg-white/[0.06] text-sidebar-foreground"
+                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-sidebar-foreground"
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
       <div className="flex-1" />
