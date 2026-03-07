@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Clock,
   Trash2,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ interface Note {
 
 interface NotesViewProps {
   workspaceId: string;
+  userRole?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -199,8 +201,8 @@ export default function NotesView({ workspaceId }: NotesViewProps) {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-left text-[13px]">
+      <div className="flex-1 overflow-x-auto overflow-y-auto">
+        <table className="w-full min-w-[1000px] text-left text-[13px]">
           <thead>
             <tr className="border-b border-white/[0.06]">
               <th className="w-10 px-4 py-2.5">
@@ -299,9 +301,7 @@ export default function NotesView({ workspaceId }: NotesViewProps) {
                 {/* Created By */}
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-5 w-5 items-center justify-center rounded bg-orange-500/20 text-[10px] font-bold text-orange-400">
-                      {note.realtorId.name.charAt(0).toUpperCase()}
-                    </span>
+                    <User className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">{note.realtorId.name}</span>
                   </div>
                 </td>

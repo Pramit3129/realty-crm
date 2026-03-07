@@ -1,6 +1,7 @@
 import { Task } from "./task.model";
 import type { ITaskCreate, ITaskUpdate } from "./task.types";
 import { Membership } from "../memberships/memberships.model";
+import { Lead } from "../lead/lead.model";
 
 export class TaskService {
   static async createTask(taskData: ITaskCreate) {
@@ -11,6 +12,13 @@ export class TaskService {
     });
     if (!checkWorkspace) {
       throw new Error("You are not a member of this workspace");
+    }
+
+    if (taskData.relations && taskData.relations.length > 0) {
+      const lead = await Lead.findById(taskData.relations[0]);
+      if (lead && lead.realtorId) {
+        taskData.assigneeId = lead.realtorId.toString();
+      }
     }
 
     const task = new Task(taskData);
@@ -30,12 +38,10 @@ export class TaskService {
     const roleInWorkspace = membership.role;
     const query: any = { workspaceId };
 
-    // In a real application, you might want to restrict viewing, 
-    // but the task requirements said "global tasks menu". We'll allow workspace viewing.
     // Uncomment lower line if we want to restrict non-owners to see only their tasks or tasks they are assigned to
-    // if (roleInWorkspace !== "OWNER") {
-    //   query.$or = [{ realtorId }, { assigneeId: realtorId }];
-    // }
+    if (roleInWorkspace !== "OWNER") {
+      query.$or = [{ realtorId }, { assigneeId: realtorId }];
+    }
 
     return await Task.find(query)
       .populate("relations", "name email")
@@ -46,10 +52,20 @@ export class TaskService {
   }
 
   static async getTasksByLead(leadId: string, workspaceId: string, realtorId: string) {
-    return await Task.find({
+    const membership = await Membership.findOne({
+      workspace: workspaceId,
+      user: realtorId,
+      isRemoved: false,
+    });
+    const query: any = {
       workspaceId,
       relations: leadId,
-    })
+    };
+    if (membership && membership.role !== "OWNER") {
+      query.$or = [{ realtorId }, { assigneeId: realtorId }];
+    }
+
+    return await Task.find(query)
       .populate("realtorId", "name")
       .populate("assigneeId", "name")
       .sort({ createdAt: -1 })

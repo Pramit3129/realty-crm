@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { setToken } from "@/lib/auth";
 
@@ -12,7 +12,7 @@ import { setToken } from "@/lib/auth";
 // On success we store the token and send the user to the home page,
 // which will then show the workspace-creation step.
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -38,5 +38,19 @@ export default function AuthCallbackPage() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <p className="animate-pulse text-muted-foreground">Signing you in…</p>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <p className="animate-pulse text-muted-foreground">Loading…</p>
+        </div>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

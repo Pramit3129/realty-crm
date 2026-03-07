@@ -15,6 +15,7 @@ import {
   Upload,
   Trash2,
   CheckSquare,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,13 +43,26 @@ interface Lead {
     name: string;
     colorIndex: number;
   };
+  realtorId?: {
+    _id: string;
+    name: string;
+    email: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
 
 interface LeadsViewProps {
   workspaceId: string;
+  userRole?: string;
 }
+
+const getRealtorId = (lead: Lead) => {
+  if (!lead.realtorId) return "";
+  return typeof lead.realtorId === "string"
+    ? lead.realtorId
+    : lead.realtorId._id;
+};
 
 // ── Constants ─────────────────────────────────────────────────────────
 // Status styles are now dynamic — colors are generated from the status string hash
@@ -161,6 +175,7 @@ const TABLE_COLUMNS = [
   { key: "email", label: "Email", icon: Mail },
   { key: "phone", label: "Phone", icon: Phone },
   { key: "city", label: "City", icon: Globe }, // Use Globe for City/Location
+  { key: "realtor", label: "Agent", icon: Users }, // New column for OWNER view
   { key: "status", label: "Status", icon: Tag },
   { key: "source", label: "Source", icon: Globe },
   { key: "createdAt", label: "Created", icon: Clock },
@@ -169,7 +184,7 @@ const TABLE_COLUMNS = [
 // ══════════════════════════════════════════════════════════════════════
 // LeadsView
 // ══════════════════════════════════════════════════════════════════════
-export default function LeadsView({ workspaceId }: LeadsViewProps) {
+export default function LeadsView({ workspaceId, userRole = "AGENT" }: LeadsViewProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -199,6 +214,13 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
 
   const token = getToken();
 
+  let currentUserId = "";
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      currentUserId = payload.id || payload._id || payload.sub;
+    } catch (e) {}
+  }
   // ── Fetch leads ───────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
     if (!workspaceId) return;
@@ -436,8 +458,8 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-left text-[13px]">
+        <div className="flex-1 overflow-x-auto overflow-y-auto">
+          <table className="w-full min-w-[1200px] text-left text-[13px]">
             <thead>
               <tr className="border-b border-white/[0.06]">
                 <th className="w-10 px-4 py-2.5">
@@ -450,7 +472,7 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                     onChange={toggleAll}
                   />
                 </th>
-                {TABLE_COLUMNS.map((col) => (
+                {TABLE_COLUMNS.filter(col => col.key !== "realtor" || userRole === "OWNER").map((col) => (
                   <th
                     key={col.key}
                     className="px-4 py-2.5 text-xs font-medium text-muted-foreground"
@@ -465,7 +487,11 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
             </thead>
             <tbody>
               {/* ── Existing leads ────────────────────────────────── */}
-              {leads.map((lead) => (
+              {leads.map((lead) => {
+                const isOwnLead = lead.realtorId?._id === currentUserId || !lead.realtorId;
+                const canEdit = isOwnLead || userRole !== "OWNER"; // AGENT cannot see others anyway, OWNER can only edit own leads
+                
+                return (
                 <tr
                   key={lead._id}
                   onClick={(e) => {
@@ -496,14 +522,16 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                     <EditableNameCell
                       lead={lead}
                       editing={
+                        canEdit &&
                         editingCell?.leadId === lead._id &&
                         editingCell?.field === "name"
                       }
                       editValue={editValue}
-                      onStart={() => startEditing(lead._id, "name", lead.name)}
+                      onStart={() => canEdit && startEditing(lead._id, "name", lead.name)}
                       onChange={setEditValue}
                       onSave={(v) => saveInlineEdit(lead._id, "name", v)}
                       onCancel={() => setEditingCell(null)}
+                      canEdit={canEdit}
                     />
                   </td>
 
@@ -512,16 +540,18 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                     <EditableChipCell
                       value={lead.email}
                       editing={
+                        canEdit &&
                         editingCell?.leadId === lead._id &&
                         editingCell?.field === "email"
                       }
                       editValue={editValue}
                       onStart={() =>
-                        startEditing(lead._id, "email", lead.email)
+                        canEdit && startEditing(lead._id, "email", lead.email)
                       }
                       onChange={setEditValue}
                       onSave={(v) => saveInlineEdit(lead._id, "email", v)}
                       onCancel={() => setEditingCell(null)}
+                      canEdit={canEdit}
                     />
                   </td>
 
@@ -530,16 +560,18 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                     <EditableChipCell
                       value={lead.phone}
                       editing={
+                        canEdit &&
                         editingCell?.leadId === lead._id &&
                         editingCell?.field === "phone"
                       }
                       editValue={editValue}
                       onStart={() =>
-                        startEditing(lead._id, "phone", lead.phone)
+                        canEdit && startEditing(lead._id, "phone", lead.phone)
                       }
                       onChange={setEditValue}
                       onSave={(v) => saveInlineEdit(lead._id, "phone", v)}
                       onCancel={() => setEditingCell(null)}
+                      canEdit={canEdit}
                     />
                   </td>
 
@@ -548,29 +580,50 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                     <EditableTextCell
                       value={lead.city || ""}
                       editing={
+                        canEdit &&
                         editingCell?.leadId === lead._id &&
                         editingCell?.field === "city"
                       }
                       editValue={editValue}
                       onStart={() =>
-                        startEditing(lead._id, "city", lead.city || "")
+                        canEdit && startEditing(lead._id, "city", lead.city || "")
                       }
                       onChange={setEditValue}
                       onSave={(v) => saveInlineEdit(lead._id, "city", v)}
                       onCancel={() => setEditingCell(null)}
+                      canEdit={canEdit}
                     />
                   </td>
+
+                  {/* Realtor/Agent (Show only to OWNER) */}
+                  {userRole === "OWNER" && (
+                    <td className="px-4 py-2.5">
+                      {lead.realtorId ? (
+                         <div className="flex items-center gap-1.5 tooltip-trigger">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-[12px] truncate max-w-[80px]">{lead.realtorId.name}</span>
+                         </div>
+                      ) : (
+                        <span className="text-muted-foreground text-[12px]">Unknown</span>
+                      )}
+                    </td>
+                  )}
 
                   {/* Status */}
                   <td
                     className="px-4 py-2.5"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <StatusDropdown
-                      status={lead.status}
-                      colorIndex={lead.stageId?.colorIndex}
-                      onChange={(s) => saveInlineEdit(lead._id, "status", s)}
-                    />
+                    {userRole === "OWNER" && getRealtorId(lead) !== currentUserId ? (
+                      <span className="text-muted-foreground/30 text-[12px]">—</span>
+                    ) : (
+                      <StatusDropdown
+                        status={lead.status}
+                        colorIndex={lead.stageId?.colorIndex}
+                        onChange={canEdit ? ((s) => saveInlineEdit(lead._id, "status", s)) : undefined}
+                        disabled={!canEdit}
+                      />
+                    )}
                   </td>
 
                   {/* Source */}
@@ -578,16 +631,18 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                     <EditableTextCell
                       value={lead.source}
                       editing={
+                        canEdit &&
                         editingCell?.leadId === lead._id &&
                         editingCell?.field === "source"
                       }
                       editValue={editValue}
                       onStart={() =>
-                        startEditing(lead._id, "source", lead.source)
+                        canEdit && startEditing(lead._id, "source", lead.source)
                       }
                       onChange={setEditValue}
                       onSave={(v) => saveInlineEdit(lead._id, "source", v)}
                       onCancel={() => setEditingCell(null)}
+                      canEdit={canEdit}
                     />
                   </td>
 
@@ -596,7 +651,8 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
                     {timeAgo(lead.createdAt)}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
 
               {/* ── "+ Add New" row — appears BELOW existing rows ─── */}
               {!showNewForm ? (
@@ -740,6 +796,8 @@ export default function LeadsView({ workspaceId }: LeadsViewProps) {
             saveInlineEdit(selectedLead._id, field, value)
           }
           onDeletePipeline={handleDeletePipeline}
+          userRole={userRole}
+          currentUserId={currentUserId}
         />
       )}
 
@@ -767,6 +825,7 @@ function EditableNameCell({
   onChange,
   onSave,
   onCancel,
+  canEdit,
 }: {
   lead: Lead;
   editing: boolean;
@@ -775,6 +834,7 @@ function EditableNameCell({
   onChange: (v: string) => void;
   onSave: (v: string) => void;
   onCancel: () => void;
+  canEdit?: boolean;
 }) {
   if (editing) {
     return (
@@ -794,15 +854,14 @@ function EditableNameCell({
   }
   return (
     <span
-      className="flex items-center gap-2 font-medium text-foreground"
+      className={`flex items-center gap-2 font-medium text-foreground ${canEdit === false ? "" : "cursor-text"}`}
       onDoubleClick={(e) => {
+        if (canEdit === false) return;
         e.stopPropagation();
         onStart();
       }}
     >
-      <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-600/80 text-[10px] font-bold text-white">
-        {lead.name.charAt(0).toUpperCase()}
-      </span>
+      <User className="h-4 w-4 text-muted-foreground" />
       {lead.name}
     </span>
   );
@@ -817,6 +876,7 @@ function EditableChipCell({
   onChange,
   onSave,
   onCancel,
+  canEdit,
 }: {
   value: string;
   editing: boolean;
@@ -825,6 +885,7 @@ function EditableChipCell({
   onChange: (v: string) => void;
   onSave: (v: string) => void;
   onCancel: () => void;
+  canEdit?: boolean;
 }) {
   if (editing) {
     return (
@@ -845,8 +906,9 @@ function EditableChipCell({
   if (!value) {
     return (
       <span
-        className="text-muted-foreground/30 text-[12px] cursor-text"
+        className={`text-muted-foreground/30 text-[12px] ${canEdit === false ? "" : "cursor-text"}`}
         onDoubleClick={(e) => {
+          if (canEdit === false) return;
           e.stopPropagation();
           onStart();
         }}
@@ -857,8 +919,9 @@ function EditableChipCell({
   }
   return (
     <span
-      className="cursor-text rounded bg-white/[0.06] px-2 py-0.5 text-[12px] text-muted-foreground"
+      className={`rounded bg-white/[0.06] px-2 py-0.5 text-[12px] text-muted-foreground ${canEdit === false ? "" : "cursor-text"}`}
       onDoubleClick={(e) => {
+        if (canEdit === false) return;
         e.stopPropagation();
         onStart();
       }}
@@ -877,6 +940,7 @@ function EditableTextCell({
   onChange,
   onSave,
   onCancel,
+  canEdit,
 }: {
   value: string;
   editing: boolean;
@@ -885,6 +949,7 @@ function EditableTextCell({
   onChange: (v: string) => void;
   onSave: (v: string) => void;
   onCancel: () => void;
+  canEdit?: boolean;
 }) {
   if (editing) {
     return (
@@ -904,8 +969,9 @@ function EditableTextCell({
   }
   return (
     <span
-      className="cursor-text text-[12px] text-muted-foreground"
+      className={`text-[12px] text-muted-foreground ${canEdit === false ? "" : "cursor-text"}`}
       onDoubleClick={(e) => {
+        if (canEdit === false) return;
         e.stopPropagation();
         onStart();
       }}
@@ -920,17 +986,19 @@ function StatusDropdown({
   status,
   colorIndex,
   onChange,
+  disabled,
 }: {
   status: string;
   colorIndex?: number;
-  onChange: (s: string) => void;
+  onChange?: (s: string) => void | Promise<void>;
+  disabled?: boolean;
 }) {
   const style = getStatusStyle(status, colorIndex);
 
   return (
     <div className="relative inline-block">
       <span
-        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium"
+        className={`flex h-[22px] cursor-pointer items-center gap-1.5 rounded-full pl-1.5 pr-2.5 text-[11px] font-medium transition-colors hover:brightness-110 ${disabled ? "opacity-70 pointer-events-none" : ""}`}
         style={{
           backgroundColor: style.bg,
           color: style.text,
@@ -950,9 +1018,11 @@ function StatusDropdown({
 function CountryCodeSelect({
   value,
   onChange,
+  disabled = false,
 }: {
   value: string;
-  onChange: (v: string) => void;
+  onChange?: (v: string) => void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -969,8 +1039,9 @@ function CountryCodeSelect({
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen(!open)}
-        className="flex h-8 items-center gap-0.5 rounded-md bg-white/[0.04] px-2 text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.08]"
+        onClick={() => !disabled && setOpen(!open)}
+        className={`flex h-8 items-center gap-0.5 rounded-md bg-white/[0.04] px-2 text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.08] ${disabled ? "cursor-not-allowed opacity-70" : ""}`}
+        disabled={disabled}
       >
         {value}
         <ChevronDown className="h-2.5 w-2.5 opacity-60" />
@@ -981,7 +1052,7 @@ function CountryCodeSelect({
             <button
               key={cc.code}
               onClick={() => {
-                onChange(cc.code);
+                onChange?.(cc.code);
                 setOpen(false);
               }}
               className="flex w-full items-center justify-between px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
@@ -1004,6 +1075,8 @@ function DetailPanel({
   onClose,
   onUpdate,
   onDeletePipeline,
+  userRole,
+  currentUserId,
 }: {
   lead: Lead;
   workspaceId: string;
@@ -1011,6 +1084,8 @@ function DetailPanel({
   onClose: () => void;
   onUpdate: (field: string, value: string) => void;
   onDeletePipeline: (pipelineId: string) => void;
+  userRole?: string;
+  currentUserId?: string;
 }) {
   const [activeTab, setActiveTab] = useState<
     "home" | "timeline" | "tasks" | "notes"
@@ -1069,6 +1144,8 @@ function DetailPanel({
             pipelines={pipelines}
             onUpdate={onUpdate}
             onDeletePipeline={onDeletePipeline}
+            userRole={userRole}
+            currentUserId={currentUserId}
           />
         )}
         {activeTab === "notes" && (
@@ -1102,11 +1179,15 @@ function HomeTab({
   pipelines,
   onUpdate,
   onDeletePipeline,
+  userRole,
+  currentUserId,
 }: {
   lead: Lead;
   pipelines: Pipeline[];
   onUpdate: (field: string, value: string) => void;
   onDeletePipeline: (pipelineId: string) => void;
+  userRole?: string;
+  currentUserId?: string;
 }) {
   return (
     <div className="px-4 py-4">
@@ -1116,6 +1197,13 @@ function HomeTab({
       <p className="mb-4 text-[11px] text-muted-foreground/40">General</p>
 
       <div className="space-y-4">
+        {userRole === "OWNER" && (
+          <DetailRow
+            icon={User}
+            label="Agent"
+            value={lead.realtorId?.name || "Unknown"}
+          />
+        )}
         <EditableDetailRow
           icon={Mail}
           label="Email"
@@ -1128,11 +1216,19 @@ function HomeTab({
           value={lead.phone}
           onSave={(v) => onUpdate("phone", v)}
         />
-        <DetailStatusRow
-          status={lead.status}
-          colorIndex={lead.stageId?.colorIndex}
-          onChange={(s) => onUpdate("status", s)}
-        />
+        {userRole === "OWNER" && getRealtorId(lead) !== currentUserId ? (
+          <DetailRow
+            icon={Tag}
+            label="Status"
+            value={<span className="text-muted-foreground/30">—</span>}
+          />
+        ) : (
+          <DetailStatusRow
+            status={lead.status}
+            colorIndex={lead.stageId?.colorIndex}
+            onChange={(s) => onUpdate("status", s)}
+          />
+        )}
         <EditableDetailRow
           icon={Globe}
           label="Source"
@@ -1151,17 +1247,19 @@ function HomeTab({
         />
       </div>
 
-      <div className="mt-8">
-        <p className="mb-4 text-[13px] font-semibold text-foreground">
-          Pipeline
-        </p>
-        <PipelineOpportunity
-          pipelineId={lead.pipelineId}
-          pipelines={pipelines}
-          onChange={(p) => onUpdate("pipelineId", p)}
-          onDelete={onDeletePipeline}
-        />
-      </div>
+      {!(userRole === "OWNER" && getRealtorId(lead) !== currentUserId) && (
+        <div className="mt-8">
+          <p className="mb-4 text-[13px] font-semibold text-foreground">
+            Pipeline
+          </p>
+          <PipelineOpportunity
+            pipelineId={lead.pipelineId}
+            pipelines={pipelines}
+            onChange={(p) => onUpdate("pipelineId", p)}
+            onDelete={onDeletePipeline}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1650,9 +1748,9 @@ function NotesTab({ lead, workspaceId }: { lead: Lead; workspaceId: string }) {
               </p>
               <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
                 <div className="flex items-center gap-1.5">
-                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-gray-500/20 text-[8px] font-bold text-gray-400">
-                    {note.realtorId.name.charAt(0).toUpperCase()}
-                  </span>
+                  <div className="flex h-3.5 w-3.5 items-center justify-center rounded bg-gray-500/10 text-gray-400">
+                    <User className="h-2 w-2" />
+                  </div>
                   <span className="text-[10px] text-muted-foreground/60">
                     {note.realtorId.name}
                   </span>
@@ -1815,10 +1913,18 @@ function TasksTab({ lead, workspaceId }: { lead: Lead; workspaceId: string }) {
             </div>
             {task.assigneeId && (
               <span className="flex items-center gap-1.5 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
-                <span className="flex h-3 w-3 items-center justify-center rounded bg-purple-500 text-[6px] font-bold text-white">
-                  {task.assigneeId.name.charAt(0).toUpperCase()}
-                </span>
+                <div className="flex h-3 w-3 items-center justify-center rounded bg-purple-500/20 text-purple-400">
+                  <User className="h-2 w-2" />
+                </div>
                 {task.assigneeId.name}
+              </span>
+            )}
+            {!task.assigneeId && task.realtorId && (
+              <span className="flex items-center gap-1.5 rounded bg-slate-500/10 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+                <div className="flex h-3 w-3 items-center justify-center rounded bg-slate-500/20 text-slate-400">
+                  <User className="h-2 w-2" />
+                </div>
+                {task.realtorId.name}
               </span>
             )}
             <button

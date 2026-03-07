@@ -65,7 +65,7 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
 
   /** Called after email login/register succeeds */
   function handleEmailSuccess() {
-    setView("workspace");
+    window.location.reload();
   }
 
   /** Submit the workspace name to the backend */

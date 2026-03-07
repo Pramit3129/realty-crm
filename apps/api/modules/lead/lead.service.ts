@@ -60,17 +60,35 @@ export class LeadService {
         if (roleInWorkspace === "OWNER") {
             return await Lead.find({ workspaceId })
                 .populate("stageId", "colorIndex name")
+                .populate("realtorId", "name email")
                 .lean();
         }
         return await Lead.find({ workspaceId, realtorId })
             .populate("stageId", "colorIndex name")
+            .populate("realtorId", "name email")
             .lean();
     }
 
     static async getLeadDetails(realtorId: string, leadId: string) {
-        return await Lead.findOne({ realtorId, _id: leadId })
-            .populate("stageId", "colorIndex name")
-            .lean();
+        const lead = await Lead.findById(leadId).lean();
+        if (!lead) return null;
+
+        if (lead.realtorId.toString() === realtorId) {
+            return await Lead.findById(leadId)
+                .populate("stageId", "colorIndex name")
+                .populate("realtorId", "name email")
+                .lean();
+        }
+
+        const membership = await Membership.findOne({ workspace: lead.workspaceId, user: realtorId, isRemoved: false });
+        if (membership?.role === "OWNER") {
+            return await Lead.findById(leadId)
+                .populate("stageId", "colorIndex name")
+                .populate("realtorId", "name email")
+                .lean();
+        }
+
+        return null;
     }
 
     static async updateLead(realtorId: string, leadId: string, leadData: ILeadUpdate) {

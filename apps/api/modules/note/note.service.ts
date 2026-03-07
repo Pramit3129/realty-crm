@@ -27,12 +27,7 @@ export class NoteService {
       throw new Error("You are not a member of this workspace");
     }
 
-    const roleInWorkspace = membership.role;
-    const query: any = { workspaceId };
-
-    if (roleInWorkspace !== "OWNER") {
-      query.realtorId = realtorId;
-    }
+    const query: any = { workspaceId, realtorId };
 
     return await Note.find(query)
       .populate("relations", "name email")
