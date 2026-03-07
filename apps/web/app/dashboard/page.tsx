@@ -6,6 +6,8 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import LeadsView from "@/components/dashboard/LeadsView";
 import PipelineView from "@/components/dashboard/PipelineView";
 import NotesView from "@/components/dashboard/NotesView";
+import TasksView from "@/components/dashboard/TasksView";
+import type { ActiveViewType } from "@/components/dashboard/Sidebar";
 import {
   getToken,
   clearToken,
@@ -24,7 +26,7 @@ export default function DashboardPage() {
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceId, setWorkspaceId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<"leads" | "pipeline" | "notes">("leads");
+  const [activeView, setActiveView] = useState<ActiveViewType>("leads");
 
   useEffect(() => {
     const token = getToken();
@@ -105,9 +107,11 @@ export default function DashboardPage() {
         <LeadsView workspaceId={workspaceId} />
       ) : activeView === "pipeline" ? (
         <PipelineView workspaceId={workspaceId} />
-      ) : (
+      ) : activeView === "notes" ? (
         <NotesView workspaceId={workspaceId} />
-      )}
+      ) : activeView.startsWith("tasks-") ? (
+        <TasksView workspaceId={workspaceId} subView={activeView as "tasks-all" | "tasks-status" | "tasks-me"} />
+      ) : null}
     </div>
   );
 }

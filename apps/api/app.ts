@@ -14,6 +14,7 @@ import campaignModule from "./modules/campaign/campaign.module";
 import noteModule from "./modules/note/note.module";
 import workerModule from "./modules/worker/worker.module";
 import schedulerModule from "./modules/scheduler/scheduler.module";
+import taskModule from "./modules/task/task.module";
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use("/api/v1/pipeline-stage", pipelineStageModule);
 app.use("/api/v1/mail", mailModule);
 app.use("/api/v1/campaign", campaignModule);
 app.use("/api/v1/note", noteModule);
+app.use("/api/v1/task", taskModule);
 app.use("/api/v1/worker", workerModule);
 app.use("/api/v1/scheduler", schedulerModule);
 

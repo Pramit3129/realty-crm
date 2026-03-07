@@ -12,9 +12,9 @@ import {
   Tag,
   ChevronDown,
   Check,
-  LayoutList,
   Upload,
   Trash2,
+  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1082,11 +1082,7 @@ function DetailPanel({
           </div>
         )}
         {activeTab === "tasks" && (
-          <div className="flex flex-1 items-center justify-center px-4 py-12">
-            <p className="text-xs text-muted-foreground/60">
-              Tasks coming soon
-            </p>
-          </div>
+          <TasksTab lead={lead} workspaceId={workspaceId} />
         )}
       </div>
 
@@ -1707,6 +1703,164 @@ function NotesTab({ lead, workspaceId }: { lead: Lead; workspaceId: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Tasks Tab ─────────────────────────────────────────────────────────
+function TasksTab({ lead, workspaceId }: { lead: Lead; workspaceId: string }) {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const token = getToken();
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/task/lead/${lead._id}/workspace/${workspaceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTasks(data.tasks || []);
+      }
+    } catch {
+      /* silent */
+    }
+  }, [lead._id, workspaceId, token]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
+
+  async function handleCreateTask() {
+    if (!newTaskTitle.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/task/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: newTaskTitle.trim(),
+          workspaceId,
+          relations: [lead._id],
+        }),
+      });
+      if (res.ok) {
+        setNewTaskTitle("");
+        setShowNewTask(false);
+        fetchTasks();
+      }
+    } catch {
+      /* silent */
+    }
+  }
+
+  async function handleUpdateTask(taskId: string, field: string, value: string) {
+    if (editingCell) setEditingCell(null);
+    try {
+      await fetch(`${API_BASE_URL}/task/details/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ [field]: value }),
+      });
+      fetchTasks();
+    } catch {
+      /* silent */
+    }
+  }
+
+  return (
+    <div className="px-4 py-4 h-full flex flex-col">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+          TODO {tasks.length}
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowNewTask(true)}
+          className="h-6 gap-1 px-2 text-[10px] border-white/[0.08]"
+        >
+          <Plus className="h-3 w-3" /> Add task
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-auto space-y-2">
+        {tasks.map((task) => (
+          <div key={task._id} className="group flex items-start gap-3 rounded-md border border-white/[0.06] bg-white/[0.02] p-3 text-[12px] transition-colors hover:bg-white/[0.04]">
+            <button
+              onClick={() => handleUpdateTask(task._id, "status", task.status === "Done" ? "To do" : "Done")}
+              className="mt-0.5 text-muted-foreground hover:text-foreground"
+            >
+              {task.status === "Done" ? (
+                <CheckSquare className="h-4 w-4 text-green-500" />
+              ) : (
+                <div className="h-4 w-4 rounded-[4px] border-2 border-muted-foreground/40" />
+              )}
+            </button>
+            <div className="flex-1 min-w-0">
+              <EditableTextCell
+                value={task.title}
+                editing={editingCell?.id === task._id && editingCell?.field === "title"}
+                editValue={editValue}
+                onStart={() => {
+                  setEditingCell({ id: task._id, field: "title" });
+                  setEditValue(task.title);
+                }}
+                onChange={setEditValue}
+                onSave={(v) => handleUpdateTask(task._id, "title", v)}
+                onCancel={() => setEditingCell(null)}
+              />
+            </div>
+            {task.assigneeId && (
+              <span className="flex items-center gap-1.5 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
+                <span className="flex h-3 w-3 items-center justify-center rounded bg-purple-500 text-[6px] font-bold text-white">
+                  {task.assigneeId.name.charAt(0).toUpperCase()}
+                </span>
+                {task.assigneeId.name}
+              </span>
+            )}
+            <button
+              onClick={async () => {
+                if (!confirm("Delete this task?")) return;
+                await fetch(`${API_BASE_URL}/task/details/${task._id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                fetchTasks();
+              }}
+              className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-red-400 -mr-1"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+
+        {showNewTask && (
+          <div className="flex items-start gap-3 rounded-md border border-white/[0.08] bg-white/[0.04] p-3">
+            <div className="mt-0.5 h-4 w-4 rounded-[4px] border-2 border-muted-foreground/40" />
+            <div className="flex-1">
+              <Input
+                autoFocus
+                placeholder="Task title"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateTask()}
+                className="h-6 w-full border-0 bg-transparent px-0 text-[12px] shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/40"
+              />
+              <div className="mt-3 flex items-center gap-2">
+                <Button size="sm" onClick={handleCreateTask} className="h-6 px-3 text-[10px]">Save</Button>
+                <button onClick={() => setShowNewTask(false)} className="px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground">Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {tasks.length === 0 && !showNewTask && (
+          <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+            <CheckSquare className="mb-2 h-6 w-6 opacity-20" />
+            <p className="text-xs">No tasks yet</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
