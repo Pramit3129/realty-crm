@@ -16,6 +16,7 @@ import {
   UserSquare2,
   Calendar,
   MoreVertical,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ interface Task {
 interface TasksViewProps {
   workspaceId: string;
   subView: "tasks-all" | "tasks-status" | "tasks-me";
+  userRole?: string;
 }
 
 const TASK_STATUSES = ["To do", "In progress", "Done", "No Value"];
@@ -80,7 +82,7 @@ function getStatusStyle(status: string) {
 // ══════════════════════════════════════════════════════════════════════
 // TasksView
 // ══════════════════════════════════════════════════════════════════════
-export default function TasksView({ workspaceId, subView }: TasksViewProps) {
+export default function TasksView({ workspaceId, subView, userRole }: TasksViewProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [users, setUsers] = useState<User[]>([]); // To simulate workspace users if available
@@ -150,11 +152,31 @@ export default function TasksView({ workspaceId, subView }: TasksViewProps) {
     }
   }, [token]);
 
+  const fetchUsers = useCallback(async () => {
+    if (!workspaceId) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/memberships/workspace/${workspaceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mappedUsers = data.map((m: any) => ({
+          _id: m.user._id,
+          name: m.user.name,
+        }));
+        setUsers(mappedUsers);
+      }
+    } catch {
+      /* silent */
+    }
+  }, [workspaceId, token]);
+
   useEffect(() => {
     fetchTasks();
     fetchLeads();
     fetchCurrentUser();
-  }, [fetchTasks, fetchLeads, fetchCurrentUser]);
+    fetchUsers();
+  }, [fetchTasks, fetchLeads, fetchCurrentUser, fetchUsers]);
 
   // Update selectedTask if tasks change
   useEffect(() => {
@@ -162,17 +184,7 @@ export default function TasksView({ workspaceId, subView }: TasksViewProps) {
       const updated = tasks.find((t) => t._id === selectedTask._id);
       if (updated) setSelectedTask(updated);
     }
-  }, [tasks]);
-
-  // Deriving workspace possible assignees from tasks simply:
-  useEffect(() => {
-    const userMap = new Map<string, User>();
-    tasks.forEach((t) => {
-      if (t.assigneeId) userMap.set(t.assigneeId._id, t.assigneeId);
-      if (t.realtorId) userMap.set(t.realtorId._id, t.realtorId);
-    });
-    setUsers(Array.from(userMap.values()));
-  }, [tasks]);
+  }, [tasks, selectedTask]);
 
   // ── Operations ──────────────────────────────────────────────────────
   async function handleCreate(statusOverride?: string) {
@@ -289,7 +301,7 @@ export default function TasksView({ workspaceId, subView }: TasksViewProps) {
         </div>
 
         {/* Content area based on subView */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-x-auto overflow-y-auto">
           {subView === "tasks-status" ? (
             <KanbanBoard
               tasks={displayedTasks}
@@ -327,6 +339,7 @@ export default function TasksView({ workspaceId, subView }: TasksViewProps) {
           task={selectedTask}
           leads={leads}
           users={users} // ideally full workspace members
+          userRole={userRole}
           onClose={() => setSelectedTask(null)}
           onUpdate={(fields: any) => handleUpdate(selectedTask._id, fields)}
           onDelete={() => handleDelete(selectedTask._id)}
@@ -355,7 +368,7 @@ function TasksTable({
   leads
 }: any) {
   return (
-    <table className="w-full text-left text-[13px]">
+    <table className="w-full min-w-[1000px] text-left text-[13px]">
       <thead>
         <tr className="border-b border-white/[0.06]">
           <th className="w-10 px-4 py-2.5">
@@ -416,9 +429,7 @@ function TasksTable({
             </td>
             <td className="px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-orange-500/20 text-[10px] font-bold text-orange-400">
-                  {task.realtorId.name.charAt(0).toUpperCase()}
-                </span>
+                <User className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">{task.realtorId.name}</span>
               </div>
             </td>
@@ -428,9 +439,7 @@ function TasksTable({
             <td className="px-4 py-2.5 text-muted-foreground">
               {task.assigneeId ? (
                 <div className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded bg-purple-500/20 text-[10px] font-bold text-purple-400">
-                    {task.assigneeId.name.charAt(0).toUpperCase()}
-                  </span>
+                  <User className="h-4 w-4 text-muted-foreground" />
                   <span>{task.assigneeId.name}</span>
                 </div>
               ) : "—"}
@@ -530,8 +539,8 @@ function KanbanBoard({ tasks, onUpdate, onAdd, onTaskClick }: any) {
                 <div className="flex items-center justify-between mt-1">
                   <div className="text-[10px] text-muted-foreground/40">{timeAgo(task.createdAt)}</div>
                   {task.assigneeId && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 text-[10px] font-bold text-purple-400">
-                      {task.assigneeId.name.charAt(0).toUpperCase()}
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 text-purple-400">
+                      <User className="h-3 w-3" />
                     </span>
                   )}
                 </div>
@@ -554,7 +563,7 @@ function KanbanBoard({ tasks, onUpdate, onAdd, onTaskClick }: any) {
 // ══════════════════════════════════════════════════════════════════════
 // Detail Panel Component
 // ══════════════════════════════════════════════════════════════════════
-function TaskDetailPanel({ task, leads, users, onClose, onUpdate, onDelete }: any) {
+function TaskDetailPanel({ task, leads, users, userRole, onClose, onUpdate, onDelete }: any) {
   const [activeTab, setActiveTab] = useState<"home" | "timeline" | "files">("home");
 
   const handleBlur = (field: string, val: string) => {
@@ -630,6 +639,7 @@ function TaskDetailPanel({ task, leads, users, onClose, onUpdate, onDelete }: an
                   <Dropdown 
                     status={task.assigneeId?.name || "Unassigned"} 
                     options={["Unassigned", ...users.map((u: User) => u.name)]} 
+                    disabled={userRole !== "OWNER"}
                     onSelect={(s) => {
                       if (s === "Unassigned") onUpdate({ assigneeId: null });
                       else onUpdate({ assigneeId: users.find((u: User) => u.name === s)?._id });
@@ -655,7 +665,9 @@ function TaskDetailPanel({ task, leads, users, onClose, onUpdate, onDelete }: an
                 <div className="flex items-center gap-3">
                   <div className="w-24 text-xs text-muted-foreground flex items-center gap-1.5"><UserSquare2 className="h-3 w-3 opacity-60"/>Created by</div>
                   <div className="flex items-center gap-1.5 text-xs text-foreground">
-                    <img src={`https://ui-avatars.com/api/?name=${task.realtorId.name}&background=random`} className="h-5 w-5 rounded-full" alt="" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/10 text-purple-400">
+                      <User className="h-3 w-3" />
+                    </div>
                     {task.realtorId.name}
                   </div>
                 </div>
@@ -706,7 +718,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function Dropdown({ status, options, onSelect, isCustom }: { status: string, options: string[], onSelect: (val: string) => void, isCustom?: boolean }) {
+function Dropdown({ status, options, onSelect, isCustom, disabled }: { status: string, options: string[], onSelect: (val: string) => void, isCustom?: boolean, disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -720,9 +732,12 @@ function Dropdown({ status, options, onSelect, isCustom }: { status: string, opt
 
   return (
     <div ref={ref} className="relative inline-block">
-      <button onClick={() => setOpen(!open)} className="focus:outline-none">
+      <button 
+        onClick={() => !disabled && setOpen(!open)} 
+        className={`focus:outline-none ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
+      >
         {isCustom ? (
-          <span className="text-xs text-foreground cursor-pointer hover:bg-white/[0.04] px-1.5 py-0.5 rounded">{status}</span>
+          <span className={`text-xs text-foreground ${!disabled && 'cursor-pointer hover:bg-white/[0.04]'} px-1.5 py-0.5 rounded`}>{status}</span>
         ) : (
           <StatusBadge status={status} />
         )}

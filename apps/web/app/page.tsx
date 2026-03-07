@@ -68,13 +68,28 @@ export default function Home() {
 
         // 2c. Success — check if workspace exists
         const data = await res.json();
-        if (data?.name) {
+        if (data && Array.isArray(data) && data.length > 0 && data[0]?._id) {
           setAuthState("ready");
-          router.replace("/dashboard");
+          const redirect = sessionStorage.getItem("postLoginRedirect");
+          if (redirect) {
+             sessionStorage.removeItem("postLoginRedirect");
+             router.replace(redirect);
+          } else {
+             router.replace("/dashboard");
+          }
           return;
         }
 
         // Token is valid but no workspace yet
+        // If they have a pending invite, don't force workspace creation
+        const pendingRedirect = sessionStorage.getItem("postLoginRedirect");
+        if (pendingRedirect && pendingRedirect.startsWith("/invite")) {
+          setAuthState("ready");
+          sessionStorage.removeItem("postLoginRedirect");
+          router.replace(pendingRedirect);
+          return;
+        }
+
         setAuthState("needs-workspace");
       } catch {
         // Network error (server down, CORS, etc.) — show login

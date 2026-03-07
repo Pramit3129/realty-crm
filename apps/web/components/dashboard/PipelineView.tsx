@@ -61,6 +61,7 @@ interface KanbanStage {
 
 interface PipelineViewProps {
   workspaceId: string;
+  userRole?: string;
 }
 
 // ── Stage color palette — each stage gets a unique color ──────────────

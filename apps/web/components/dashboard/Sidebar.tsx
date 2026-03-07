@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2 } from "lucide-react";
+import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -12,19 +12,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { clearToken } from "@/lib/auth";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { CreateWorkspaceModal } from "@/components/dashboard/CreateWorkspaceModal";
 
 // ── Types ─────────────────────────────────────────────────────────────
 export type ActiveViewType = 
   | "leads" 
   | "pipeline" 
   | "notes" 
+  | "members"
   | "tasks-all" 
   | "tasks-status" 
   | "tasks-me";
 
 // ── Props ─────────────────────────────────────────────────────────────
 interface SidebarProps {
-  workspaceName: string;
+  workspaces: any[];
+  activeWorkspaceId: string;
+  onWorkspaceChange: (id: string) => void;
+  refreshWorkspaces: (newWorkspaceId?: string) => void;
   activeView: ActiveViewType;
   onViewChange: (view: ActiveViewType) => void;
 }
@@ -42,7 +47,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "pipeline", label: "Pipeline", icon: Kanban },
   { key: "notes", label: "Notes", icon: StickyNote },
   { 
-    key: "tasks", 
+    key: "tasks",  
     label: "Tasks", 
     icon: CheckSquare,
     subItems: [
@@ -56,13 +61,20 @@ const NAV_ITEMS: NavItem[] = [
 // ── Sidebar Component ─────────────────────────────────────────────────
 
 export default function Sidebar({
-  workspaceName,
+  workspaces,
+  activeWorkspaceId,
+  onWorkspaceChange,
+  refreshWorkspaces,
   activeView,
   onViewChange,
 }: SidebarProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const [tasksExpanded, setTasksExpanded] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const activeWorkspace = workspaces.find((w) => w._id === activeWorkspaceId);
+  const displayWorkspaceName = activeWorkspace?.name || "Workspace";
 
   function handleLogout() {
     clearToken();
@@ -77,16 +89,44 @@ export default function Sidebar({
           <button className="flex w-full items-center gap-2 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.04]">
             {/* Workspace initial */}
             <span className="flex h-6 w-6 items-center justify-center rounded bg-violet-600 text-[11px] font-bold text-white">
-              {workspaceName.charAt(0).toUpperCase()}
+              {displayWorkspaceName.charAt(0).toUpperCase()}
             </span>
             <span className="flex-1 truncate text-sm font-medium">
-              {workspaceName}
+              {displayWorkspaceName}
             </span>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" className="w-52">
+          {workspaces.map((w) => (
+            <DropdownMenuItem
+              key={w._id}
+              onClick={() => onWorkspaceChange(w._id)}
+              className="cursor-pointer flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded bg-violet-600 text-[10px] font-bold text-white">
+                  {w.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="truncate max-w-[120px]">{w.name} {w.role === "OWNER" ? "(Owner)" : ""}</span>
+              </div>
+              {w._id === activeWorkspaceId && <Check className="h-3.5 w-3.5" />}
+            </DropdownMenuItem>
+          ))}
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem onClick={() => setIsCreateModalOpen(true)} className="cursor-pointer">
+            <PlusSquare className="mr-2 h-4 w-4" />
+            <span>Add Workspace</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onViewChange("members")} className="cursor-pointer">
+            <UserPlus className="mr-2 h-4 w-4" />
+            <span>Invite Member</span>
+          </DropdownMenuItem>
+
+
           <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
             {theme === "dark" ? (
               <Sun className="mr-2 h-4 w-4" />
@@ -174,6 +214,15 @@ export default function Sidebar({
       </nav>
 
       <div className="flex-1" />
+
+      <CreateWorkspaceModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={(newWorkspaceId) => {
+          setIsCreateModalOpen(false);
+          refreshWorkspaces(newWorkspaceId);
+        }}
+      />
     </aside>
   );
 }

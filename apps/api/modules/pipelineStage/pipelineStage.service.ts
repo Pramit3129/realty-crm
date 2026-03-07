@@ -4,12 +4,13 @@ import { Lead } from "../lead/lead.model";
 export class PipelineStageService {
     async createStage(data: {
         name: string;
-        description: string;
+        description?: string;
         pipelineId: string;
         workspaceId: string;
         stageNumber: number;
         probability: number;
         isFinal: boolean;
+        colorIndex?: number;
     }) {
         const stage = await PipelineStage.create(data);
         return stage;
@@ -26,10 +27,10 @@ export class PipelineStageService {
     }
 
     /** Get a stage along with all leads currently in it (Kanban column data) */
-    async getStageWithLeads(id: string) {
+    async getStageWithLeads(id: string, realtorId: string) {
         const stage = await PipelineStage.findById(id);
         if (!stage) return null;
-        const leads = await Lead.find({ stageId: stage._id });
+        const leads = await Lead.find({ stageId: stage._id, realtorId });
         return { ...stage.toObject(), leads };
     }
 
@@ -68,10 +69,10 @@ export class PipelineStageService {
     }
 
     /** Get full Kanban board: all stages for a pipeline, each populated with their leads */
-    async getKanbanBoard(pipelineId: string) {
+    async getKanbanBoard(pipelineId: string, realtorId: string) {
         const stages = await PipelineStage.find({ pipelineId }).sort({ stageNumber: 1 }).lean();
         const stageIds = stages.map((s) => s._id);
-        const leads = await Lead.find({ stageId: { $in: stageIds } }).lean();
+        const leads = await Lead.find({ stageId: { $in: stageIds }, realtorId }).lean();
 
         return stages.map((stage) => ({
             ...stage,

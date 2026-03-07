@@ -31,8 +31,8 @@ export const SELLER_STAGES = [
  * Returns the pipeline IDs and the first stage ID for each pipeline.
  */
 export async function ensureDefaultPipelines(workspaceId: string, realtorId: string) {
-    let buyerPipeline = await Pipeline.findOne({ workspaceId, type: "BUYER" });
-    let sellerPipeline = await Pipeline.findOne({ workspaceId, type: "SELLER" });
+    let buyerPipeline = await Pipeline.findOne({ workspaceId, realtorId, type: "BUYER" });
+    let sellerPipeline = await Pipeline.findOne({ workspaceId, realtorId, type: "SELLER" });
 
     if (!buyerPipeline) {
         buyerPipeline = await Pipeline.create({

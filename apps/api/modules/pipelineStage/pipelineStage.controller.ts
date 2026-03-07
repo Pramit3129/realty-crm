@@ -80,8 +80,9 @@ export const deletePipelineStage = async (req: Request, res: Response) => {
 /** GET /kanban/:pipelineId — full board with leads per stage */
 export const getKanbanBoard = async (req: Request, res: Response) => {
     try {
+        const authUser = req as AuthenticatedRequest;
         const { pipelineId } = getStagesByPipelineSchema.parse(req.params);
-        const board = await pipelineStageService.getKanbanBoard(pipelineId);
+        const board = await pipelineStageService.getKanbanBoard(pipelineId, authUser.user.id);
         res.status(200).json(board);
     } catch (error) {
         res.status(500).json({ message: "Failed to get kanban board", error });
@@ -91,8 +92,9 @@ export const getKanbanBoard = async (req: Request, res: Response) => {
 /** GET /details/:id/leads — single stage with its leads */
 export const getStageWithLeads = async (req: Request, res: Response) => {
     try {
+        const authUser = req as AuthenticatedRequest;
         const { id } = getPipelineStageSchema.parse(req.params);
-        const result = await pipelineStageService.getStageWithLeads(id);
+        const result = await pipelineStageService.getStageWithLeads(id, authUser.user.id);
         if (!result) {
             res.status(404).json({ message: "Stage not found" });
             return;
