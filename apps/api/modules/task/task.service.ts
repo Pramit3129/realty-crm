@@ -85,6 +85,13 @@ export class TaskService {
     });
     if (!membership) throw new Error("You are not a member of this workspace");
 
+    // Role check for update permissions
+    if (membership.role !== "OWNER") {
+      if (task.assigneeId?.toString() !== realtorId.toString()) {
+        throw new Error("Agents can only update tasks assigned to them");
+      }
+    }
+
     // Role check for assignment
     if (membership.role !== "OWNER" && taskData.assigneeId) {
       if (taskData.assigneeId.toString() !== realtorId.toString()) {
@@ -100,6 +107,23 @@ export class TaskService {
   }
 
   static async deleteTask(realtorId: string, taskId: string) {
+    const task = await Task.findById(taskId);
+    if (!task) throw new Error("Task not found");
+
+    const membership = await Membership.findOne({
+      workspace: task.workspaceId,
+      user: realtorId,
+      isRemoved: false,
+    });
+    if (!membership) throw new Error("You are not a member of this workspace");
+
+    // Role check for delete permissions
+    if (membership.role !== "OWNER") {
+      if (task.assigneeId?.toString() !== realtorId.toString()) {
+        throw new Error("Agents can only delete tasks assigned to them");
+      }
+    }
+
     return await Task.findOneAndDelete({ _id: taskId }).lean();
   }
 }

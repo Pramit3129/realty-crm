@@ -95,8 +95,17 @@ export default function TasksView({ workspaceId, subView, userRole }: TasksViewP
   const [submitting, setSubmitting] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newStatus, setNewStatus] = useState("To do");
+  const [error, setError] = useState<string | null>(null);
 
   const token = getToken();
+
+  // Clear error after 3 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   // ── Data Fetching ───────────────────────────────────────────────────
   const fetchTasks = useCallback(async () => {
@@ -216,7 +225,7 @@ export default function TasksView({ workspaceId, subView, userRole }: TasksViewP
     }
   }
 
-  async function handleUpdate(taskId: string, fields: Partial<Task>) {
+  async function handleUpdate(taskId: string, fields: any) {
     try {
       const res = await fetch(`${API_BASE_URL}/task/details/${taskId}`, {
         method: "PUT",
@@ -226,9 +235,13 @@ export default function TasksView({ workspaceId, subView, userRole }: TasksViewP
         },
         body: JSON.stringify(fields),
       });
-      if (res.ok) fetchTasks();
-    } catch {
-      /* silent */
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to update task");
+      }
+      fetchTasks();
+    } catch (error: any) {
+      setError(error.message || "Failed to update task");
     }
   }
 
@@ -239,18 +252,22 @@ export default function TasksView({ workspaceId, subView, userRole }: TasksViewP
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        if (selectedTask?._id === taskId) setSelectedTask(null);
-        fetchTasks();
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to delete task");
       }
-    } catch {
-      /* silent */
+      if (selectedTask?._id === taskId) setSelectedTask(null);
+      fetchTasks();
+    } catch (error: any) {
+      setError(error.message || "Failed to delete task");
     }
   }
 
   // ── View Filtering ──────────────────────────────────────────────────
   let displayedTasks = tasks;
   if (subView === "tasks-me" && currentUser) {
+    displayedTasks = tasks.filter((t) => t.assigneeId?._id === currentUser.id);
+  } else if (subView === "tasks-status" && currentUser && userRole !== "OWNER") {
     displayedTasks = tasks.filter((t) => t.assigneeId?._id === currentUser.id);
   }
 
@@ -294,6 +311,12 @@ export default function TasksView({ workspaceId, subView, userRole }: TasksViewP
           </div>
         </div>
 
+        {error && (
+          <div className="mx-5 mb-2 rounded bg-red-500/10 px-3 py-1.5 text-xs text-red-500 border border-red-500/20">
+            {error}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 border-b border-white/[0.06] px-5 py-1.5">
           <span className="text-xs text-muted-foreground">
             {titleForSubView} · {displayedTasks.length}
@@ -305,6 +328,8 @@ export default function TasksView({ workspaceId, subView, userRole }: TasksViewP
           {subView === "tasks-status" ? (
             <KanbanBoard
               tasks={displayedTasks}
+              currentUser={currentUser}
+              userRole={userRole}
               onUpdate={handleUpdate}
               onAdd={(status: string) => {
                 setNewTitle("New Task");
@@ -340,6 +365,7 @@ export default function TasksView({ workspaceId, subView, userRole }: TasksViewP
           leads={leads}
           users={users} // ideally full workspace members
           userRole={userRole}
+          currentUser={currentUser}
           onClose={() => setSelectedTask(null)}
           onUpdate={(fields: any) => handleUpdate(selectedTask._id, fields)}
           onDelete={() => handleDelete(selectedTask._id)}
@@ -490,12 +516,23 @@ function TasksTable({
 // ══════════════════════════════════════════════════════════════════════
 // Kanban Board View Component
 // ══════════════════════════════════════════════════════════════════════
-function KanbanBoard({ tasks, onUpdate, onAdd, onTaskClick }: any) {
+function KanbanBoard({ tasks, userRole, currentUser, onUpdate, onAdd, onTaskClick }: any) {
   
   const handleDrop = (e: React.DragEvent, status: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
     if (!taskId) return;
+    
+    // UI check before update
+    const task = tasks.find((t: any) => t._id === taskId);
+    const isOwner = userRole === "OWNER";
+    const isAssignee = task?.assigneeId?._id === currentUser?.id;
+    
+    if (!isOwner && !isAssignee) {
+      alert("Agents can only update tasks assigned to them");
+      return;
+    }
+
     onUpdate(taskId, { status });
   };
 
@@ -525,7 +562,7 @@ function KanbanBoard({ tasks, onUpdate, onAdd, onTaskClick }: any) {
             {tasks.filter((t: any) => t.status === status).map((task: Task) => (
               <div 
                 key={task._id} 
-                draggable
+                draggable={userRole === "OWNER" || task.assigneeId?._id === currentUser?.id}
                 onDragStart={(e) => e.dataTransfer.setData("taskId", task._id)}
                 onClick={() => onTaskClick(task)}
                 className="bg-white/[0.04] hover:bg-white/[0.06] transition-colors border border-white/[0.08] p-3 rounded shadow-sm cursor-grab active:cursor-grabbing flex flex-col gap-2"
@@ -563,10 +600,16 @@ function KanbanBoard({ tasks, onUpdate, onAdd, onTaskClick }: any) {
 // ══════════════════════════════════════════════════════════════════════
 // Detail Panel Component
 // ══════════════════════════════════════════════════════════════════════
-function TaskDetailPanel({ task, leads, users, userRole, onClose, onUpdate, onDelete }: any) {
+function TaskDetailPanel({ task, leads, users, userRole, currentUser, onClose, onUpdate, onDelete }: any) {
   const [activeTab, setActiveTab] = useState<"home" | "timeline" | "files">("home");
 
+  const isOwner = userRole === "OWNER";
+  const isAssignee = task.assigneeId?._id === currentUser?.id;
+  const canEdit = isOwner || isAssignee;
+
   const handleBlur = (field: string, val: string) => {
+    if (!canEdit) return;
+    if (task[field] === val) return;
     onUpdate({ [field]: val });
   };
 
@@ -578,14 +621,17 @@ function TaskDetailPanel({ task, leads, users, userRole, onClose, onUpdate, onDe
           <X className="h-4 w-4" />
         </button>
         <Input 
-          className="border-0 bg-transparent px-0 font-medium text-foreground text-sm flex-1 shadow-none focus-visible:ring-0 focus-visible:border-b focus-visible:border-white/20 rounded-none h-auto py-1"
+          className={`border-0 bg-transparent px-0 font-medium text-foreground text-sm flex-1 shadow-none focus-visible:ring-0 focus-visible:border-b focus-visible:border-white/20 rounded-none h-auto py-1 ${!canEdit ? 'cursor-default' : ''}`}
           defaultValue={task.title || "Untitled"}
+          readOnly={!canEdit}
           onBlur={(e) => handleBlur("title", e.target.value)}
         />
         <div className="flex items-center gap-1">
-          <button onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-red-400 rounded hover:bg-white/[0.04]">
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {canEdit && (
+            <button onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-red-400 rounded hover:bg-white/[0.04]">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -619,7 +665,12 @@ function TaskDetailPanel({ task, leads, users, userRole, onClose, onUpdate, onDe
                 {/* Status Inline Edit */}
                 <div className="flex items-center gap-3">
                   <div className="w-24 text-xs text-muted-foreground flex items-center gap-1.5"><Check className="h-3 w-3 opacity-60"/>Status</div>
-                  <Dropdown status={task.status} options={TASK_STATUSES} onSelect={(s) => onUpdate({ status: s })} />
+                  <Dropdown 
+                    status={task.status} 
+                    options={TASK_STATUSES} 
+                    disabled={!canEdit}
+                    onSelect={(s) => onUpdate({ status: s })} 
+                  />
                 </div>
 
                 {/* Due Date Inline Edit */}
@@ -627,8 +678,9 @@ function TaskDetailPanel({ task, leads, users, userRole, onClose, onUpdate, onDe
                   <div className="w-24 text-xs text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3 opacity-60"/>Due Date</div>
                   <Input 
                     type="date"
-                    className="h-7 border-0 bg-white/[0.04] text-xs px-2 shadow-none flex-1 max-w-[150px]"
+                    className={`h-7 border-0 bg-white/[0.04] text-xs px-2 shadow-none flex-1 max-w-[150px] ${!canEdit ? 'cursor-default' : ''}`}
                     defaultValue={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ""}
+                    readOnly={!canEdit}
                     onBlur={(e) => handleBlur("dueDate", e.target.value)}
                   />
                 </div>
@@ -648,16 +700,41 @@ function TaskDetailPanel({ task, leads, users, userRole, onClose, onUpdate, onDe
                   />
                 </div>
                 
-                {/* Relations list (read-only for brevity, updating relations generally uses advanced chip UI) */}
+                {/* Relations list */}
                 <div className="flex items-start gap-3">
                   <div className="w-24 text-xs text-muted-foreground flex items-center gap-1.5 mt-1"><Users className="h-3 w-3 opacity-60"/>Relations</div>
-                  <div className="flex flex-wrap gap-1 flex-1">
-                    {task.relations?.length === 0 && <span className="text-xs text-muted-foreground mt-1">—</span>}
-                    {task.relations?.map((l: Lead) => (
-                      <span key={l._id} className="inline-flex items-center gap-1.5 rounded bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-400">
-                        {l.name}
-                      </span>
-                    ))}
+                  <div className="flex flex-col gap-2 flex-1">
+                    <div className="flex flex-wrap gap-1">
+                      {task.relations?.length === 0 && <span className="text-xs text-muted-foreground mt-1">—</span>}
+                      {task.relations?.map((l: Lead) => (
+                        <span key={l._id} className="inline-flex items-center gap-1.5 rounded bg-blue-500/10 pl-2 pr-1 py-0.5 text-[11px] font-medium text-blue-400">
+                          {l.name}
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                const newRelations = task.relations.filter((r: Lead) => r._id !== l._id).map((r: Lead) => r._id);
+                                onUpdate({ relations: newRelations });
+                              }}
+                              className="ml-1 rounded-sm hover:bg-blue-500/20 p-0.5 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    {canEdit && (
+                      <div className="mt-1">
+                        <RelationDropdown
+                          leads={leads}
+                          currentRelations={task.relations || []}
+                          onAdd={(leadId) => {
+                            const newRelations = [...(task.relations?.map((r: Lead) => r._id) || []), leadId];
+                            onUpdate({ relations: newRelations });
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -678,8 +755,9 @@ function TaskDetailPanel({ task, leads, users, userRole, onClose, onUpdate, onDe
             <div className="mt-4 pt-4 border-t border-white/[0.06]">
               <p className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">Note</p>
               <textarea
-                className="w-full bg-transparent text-[13px] text-foreground resize-none border-0 p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 min-h-[150px]"
+                className={`w-full bg-transparent text-[13px] text-foreground resize-none border-0 p-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 min-h-[150px] ${!canEdit ? 'cursor-default' : ''}`}
                 placeholder="Type your task note here..."
+                readOnly={!canEdit}
                 defaultValue={task.body}
                 onBlur={(e) => handleBlur("body", e.target.value)}
               />
@@ -715,6 +793,69 @@ function StatusBadge({ status }: { status: string }) {
       <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: style.dot }} />
       {status || "No Value"}
     </span>
+  );
+}
+
+function RelationDropdown({ leads, currentRelations, onAdd }: { leads: Lead[], currentRelations: Lead[], onAdd: (leadId: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Filter out leads that are already added
+  const currentRelationIds = new Set(currentRelations.map(r => r._id));
+  const availableLeads = leads.filter(l => !currentRelationIds.has(l._id) && l.name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 rounded-md bg-white/[0.04] px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-white/[0.08] hover:text-foreground transition-colors"
+      >
+        <Plus className="h-3 w-3" /> Add
+      </button>
+      
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-white/[0.08] bg-[#1a1a1a] p-1 shadow-xl">
+          <div className="p-1 mb-1">
+            <input
+              type="text"
+              placeholder="Search leads..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent border-0 border-b border-white/10 px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-0 mb-1"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto">
+            {availableLeads.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-muted-foreground/60">No new leads found.</div>
+            ) : (
+              availableLeads.map((lead) => (
+                <button
+                  key={lead._id}
+                  onClick={() => {
+                    onAdd(lead._id);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className="flex w-full items-center px-3 py-1.5 text-left text-[12px] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground rounded"
+                >
+                  <span className="truncate">{lead.name}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
