@@ -121,7 +121,15 @@ export class CampaingService {
   }
 
   static async getCampaignSteps(campaignId: string) {
-    const campaignStep = await CampaignStep.find({ campaignId }).sort({ stepOrder: 1 }).lean();
+    const campaignStep = await CampaignStep.find({ campaignId })
+      .select("delayDays subject stepOrder _id")
+      .sort({ stepOrder: 1 })
+      .lean();
+    return campaignStep;
+  }
+
+  static async getCampaignStep(stepId: string) {
+    const campaignStep = await CampaignStep.findById(stepId).select("subject body delayDays").lean();
     return campaignStep;
   }
 

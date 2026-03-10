@@ -270,6 +270,36 @@ export const getCampaignSteps = async (req: Request, res: Response) => {
   }
 }
 
+export const getCampaignStep = async (req: Request, res: Response) => {
+  try {
+    const stepId = req.params.stepId as string;
+    if (!stepId) {
+      return res.status(400).json({
+        success: false,
+        message: "stepId is required",
+      });
+    }
+    const step = await CampaingService.getCampaignStep(stepId);
+    if (!step) {
+      return res.status(404).json({
+        success: false,
+        message: "Campaign step not found",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Campaign step fetched successfully",
+      data: step,
+    });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch campaign step",
+    });
+  }
+}
+
 export const updateCampaignStep = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;

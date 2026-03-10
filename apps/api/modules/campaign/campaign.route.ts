@@ -9,6 +9,7 @@ import {
   startCampaign,
   deleteCampaignStep,
   getCampaignSteps,
+  getCampaignStep,
   updateCampaignStep,
   trackEmailOpen,
   unsubscribeEmail
@@ -35,6 +36,7 @@ router.delete('/step/:stepId', deleteCampaignStep);
 
 router.get("/details/:campaignId", getCampaingDetails);
 router.get('/:campaignId/steps', getCampaignSteps);
+router.get('/:campaignId/steps/:stepId', getCampaignStep);
 router.get("/:workspaceId", getCampaings);
 router.delete("/:campaignId", deleteCampaing);
 
