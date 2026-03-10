@@ -47,6 +47,13 @@ const leadSchema = new mongoose.Schema<ILead>({
     status: {
         type: String,
         default: "New Inquiry"
+    },
+    isUnsubscribed: {
+        type: Boolean,
+        default: false
+    },
+    unsubscribedAt: {
+        type: Date
     }
 }, {
     timestamps: true,

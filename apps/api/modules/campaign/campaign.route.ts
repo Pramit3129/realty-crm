@@ -10,7 +10,8 @@ import {
   deleteCampaignStep,
   getCampaignSteps,
   updateCampaignStep,
-  trackEmailOpen
+  trackEmailOpen,
+  unsubscribeEmail
 } from "./campaign.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
 
@@ -21,6 +22,7 @@ router.get("/health", (req, res) => {
 });
 
 router.get("/track/:batchId/:leadId", trackEmailOpen);
+router.get("/unsubscribe/:leadId", unsubscribeEmail);
 
 router.use(requireAuth);
 

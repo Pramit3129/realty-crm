@@ -3,6 +3,7 @@ import { CampaingService } from "./campaign.service";
 import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
 import type { ICampaignCreate, ICampaignUpdate, ICampaignStepCreate, ILead } from "./campaign.types";
 import { CampaignBatch } from "./models/campaignBatch.model";
+import { Lead } from "../lead/lead.model";
 
 export const createCampaing = async (req: Request, res: Response) => {
   try {
@@ -332,5 +333,50 @@ export const trackEmailOpen = async (req: Request, res: Response) => {
     const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
     res.writeHead(200, { "Content-Type": "image/gif" });
     res.end(pixel);
+  }
+};
+
+export const unsubscribeEmail = async (req: Request, res: Response) => {
+  try {
+    const { leadId } = req.params;
+
+    if (!leadId) {
+      return res.status(400).send("Lead ID is required to unsubscribe.");
+    }
+
+    const updatedLead = await Lead.findByIdAndUpdate(
+      leadId,
+      {
+        $set: {
+          isUnsubscribed: true,
+          unsubscribedAt: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedLead) {
+      return res.status(404).send(`
+        <html>
+          <body style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+            <h2>Lead not found</h2>
+            <p>We could not process your unsubscribe request because this record does not exist.</p>
+          </body>
+        </html>
+      `);
+    }
+
+    return res.status(200).send(`
+      <html>
+        <body style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+          <h2 style="color: #4CAF50;">Unsubscribed Successfully</h2>
+          <p>You have been successfully removed from our mailing list. You will no longer receive automated campaign emails from us.</p>
+        </body>
+      </html>
+    `);
+
+  } catch (error) {
+    console.error("Error unsubscribing lead:", error);
+    return res.status(500).send("Internal server error during unsubscribe.");
   }
 };

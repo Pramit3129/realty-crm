@@ -25,7 +25,7 @@ class EmailIntegrationService {
             access_type: "offline",
             prompt: "consent",
             scope: scopes,
-            state: JSON.stringify({ userId, intent: "email_integration" }), // Differentiate request intent using JSON
+            state: JSON.stringify({ userId, intent: "email_integration" }),
         });
     }
 

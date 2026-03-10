@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { emailIntegrationService } from "./emailIntegration.service";
 import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
+import { EmailIntegration } from "./emailIntegration.model";
+import { Lead } from "../lead/lead.model";
 
 export async function getGoogleAuthUrl(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
@@ -27,8 +29,6 @@ export async function getIntegrationStatus(req: AuthenticatedRequest, res: Respo
             return;
         }
 
-        
-        const { EmailIntegration } = await import("./emailIntegration.model");
         const integration = await EmailIntegration.findOne({ userId });
 
         if (!integration) {
@@ -56,9 +56,6 @@ export async function sendEmailToLead(req: AuthenticatedRequest, res: Response):
             res.status(400).json({ message: "Missing required fields: leadId, subject, body" });
             return;
         }
-
-        // Fetch lead
-        const { Lead } = await import("../lead/lead.model");
         const lead = await Lead.findById(leadId);
 
         if (!lead) {
@@ -70,8 +67,6 @@ export async function sendEmailToLead(req: AuthenticatedRequest, res: Response):
             res.status(400).json({ message: "Lead does not have an email address" });
             return;
         }
-
-        // Send email using integration
         await emailIntegrationService.sendEmail(userId, lead.email, subject, body);
 
         res.status(200).json({ message: "Email sent successfully" });

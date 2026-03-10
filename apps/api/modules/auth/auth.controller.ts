@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { env } from "../../shared/config/env.config";
 import { registerSchema, loginSchema } from "./auth.types";
 import { authService } from "./auth.service";
+import { emailIntegrationService } from "../emailIntegration/emailIntegration.service";
 
 const REFRESH_COOKIE_OPTIONS = {
     httpOnly: true,
@@ -134,7 +135,6 @@ export async function googleAuthCallback(
             return;
         }
 
-        // Handle specific OAuth intent redirects (e.g. Email Integration)
         let stateObj: any = null;
         try {
             if (req.query.state) {
@@ -145,7 +145,6 @@ export async function googleAuthCallback(
         }
 
         if (stateObj && stateObj.intent === "email_integration") {
-            const { emailIntegrationService } = await import("../emailIntegration/emailIntegration.service");
             await emailIntegrationService.handleCallback(code, stateObj.userId);
             res.redirect(`${env.FRONTEND_URL}/?email_connected=true`);
             return;
