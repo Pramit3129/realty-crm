@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { CampaingService } from "./campaign.service";
 import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
 import type { ICampaignCreate, ICampaignUpdate, ICampaignStepCreate, ILead } from "./campaign.types";
+import { CampaignBatch } from "./models/campaignBatch.model";
 
 export const createCampaing = async (req: Request, res: Response) => {
   try {
@@ -294,4 +295,42 @@ export const updateCampaignStep = async (req: Request, res: Response) => {
     });
   }
 
+};
+
+export const trackEmailOpen = async (req: Request, res: Response) => {
+  try {
+    const { batchId, leadId } = req.params;
+
+    if (!batchId || !leadId) {
+      return res.status(400).send("Missing parameters");
+    }
+
+    const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+
+    res.writeHead(200, {
+      "Content-Type": "image/gif",
+      "Content-Length": pixel.length,
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0"
+    });
+    res.end(pixel);
+
+    CampaignBatch.findOneAndUpdate(
+      {
+        _id: batchId,
+        "leads.leadId": leadId,
+        "leads.openedAt": { $exists: false }
+      },
+      {
+        $set: { "leads.$.openedAt": new Date() }
+      }
+    ).catch(console.error);
+
+  } catch (error) {
+    console.error("Error in email tracking pixel:", error);
+    const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+    res.writeHead(200, { "Content-Type": "image/gif" });
+    res.end(pixel);
+  }
 };

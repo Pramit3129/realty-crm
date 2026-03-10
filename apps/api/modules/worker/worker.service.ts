@@ -27,14 +27,21 @@ export class WorkerService {
 
         const leads = batchDoc.leads || [];
 
+        const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
+
         const batchPayload = leads
             .filter((l: any) => l?.email)
-            .map((lead: any) => ({
-                from: process.env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
-                to: [lead.email],
-                subject: step.subject,
-                html: step.body?.replace("{{name}}", lead.name || "there")
-            }));
+            .map((lead: any) => {
+                const trackingPixel = `<img src="${backendUrl}/api/v1/campaign/track/${batchId}/${lead.leadId}?cb=${Date.now()}" width="1" height="1" style="display:none; visibility:hidden;" alt="" />`;
+                const compiledHtml = step.body?.replace("{{name}}", lead.name || "there") + trackingPixel;
+
+                return {
+                    from: process.env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
+                    to: [lead.email],
+                    subject: step.subject,
+                    html: compiledHtml
+                };
+            });
 
         if (batchPayload.length === 0) {
             await CampaignBatch.findByIdAndUpdate(batchId, { status: "failed" });
@@ -55,7 +62,7 @@ export class WorkerService {
                 status: "failed"
             });
 
-            throw error; 
+            throw error;
         }
     }
 }
