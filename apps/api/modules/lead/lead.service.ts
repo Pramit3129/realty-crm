@@ -3,6 +3,7 @@ import type { ILeadCreate, IleadOverView, ILeadUpdate } from "./lead.types";
 import { Membership } from "../memberships/memberships.model";
 import { ensureDefaultPipelines } from "../pipeline/pipeline.seed";
 import { PipelineStage } from "../pipelineStage/pipelineStage.model";
+import { CampaignBatch } from "../campaign/models/campaignBatch.model";
 
 
 export class LeadService {
@@ -193,6 +194,50 @@ export class LeadService {
             throw new Error("You are not a member of this workspace");
         }
         const leads = await Lead.find({ campaignId, realtorId: userId, workspaceId }).lean();
-        return leads;
+
+        const batches = await CampaignBatch.find({ campaignId }).lean();
+
+        const leadsWithTracking = leads.map(lead => {
+            let totalEmailsSent = 0;
+            let totalEmailsOpened = 0;
+            let totalOpenCount = 0;
+            let lastOpenedAt: Date | null = null;
+            let stepsOpened: { stepId: string, openedAt: Date, openCount: number }[] = [];
+
+            batches.forEach(batch => {
+                if (batch.status === "sent" || batch.status === "processing") {
+                    const leadInBatch = batch.leads?.find((l: any) => l.leadId.toString() === lead._id.toString());
+                    if (leadInBatch) {
+                        totalEmailsSent++;
+                        if (leadInBatch.openedAt) {
+                            totalEmailsOpened++;
+                            totalOpenCount += (leadInBatch.openCount || 1);
+                            stepsOpened.push({
+                                stepId: batch.stepId!.toString(),
+                                openedAt: leadInBatch.openedAt,
+                                openCount: leadInBatch.openCount || 1
+                            });
+                            if (!lastOpenedAt || new Date(leadInBatch.openedAt) > new Date(lastOpenedAt)) {
+                                lastOpenedAt = leadInBatch.openedAt;
+                            }
+                        }
+                    }
+                }
+            });
+
+            return {
+                ...lead,
+                tracking: {
+                    totalEmailsSent,
+                    totalEmailsOpened,
+                    totalOpenCount,
+                    hasOpenedAny: totalEmailsOpened > 0,
+                    lastOpenedAt,
+                    stepsOpened
+                }
+            };
+        });
+
+        return leadsWithTracking;
     }
 }

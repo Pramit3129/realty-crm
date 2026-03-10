@@ -85,6 +85,7 @@ export const getCampaings = async (req: Request, res: Response) => {
       });
     }
     const campaings = await CampaingService.getCampaings(workspaceId, userId);
+
     return res.status(200).json({
       success: true,
       message: "Campaings fetched successfully",
@@ -247,7 +248,6 @@ export const deleteCampaignStep = async (req: Request, res: Response) => {
 export const getCampaignSteps = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const userId = authReq.user.id;
     const campaignId = req.params.campaignId as string;
     if (!campaignId) {
       return res.status(400).json({
@@ -320,11 +320,11 @@ export const trackEmailOpen = async (req: Request, res: Response) => {
     CampaignBatch.findOneAndUpdate(
       {
         _id: batchId,
-        "leads.leadId": leadId,
-        "leads.openedAt": { $exists: false }
+        "leads.leadId": leadId
       },
       {
-        $set: { "leads.$.openedAt": new Date() }
+        $set: { "leads.$.openedAt": new Date() },
+        $inc: { "leads.$.openCount": 1 }
       }
     ).catch(console.error);
 

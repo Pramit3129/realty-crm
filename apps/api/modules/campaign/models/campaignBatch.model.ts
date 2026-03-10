@@ -15,7 +15,8 @@ const campaignBatchSchema = new mongoose.Schema({
         leadId: { type: mongoose.Schema.Types.ObjectId, required: true },
         email: { type: String, required: true },
         name: { type: String, required: true },
-        openedAt: { type: Date }
+        openedAt: { type: Date },
+        openCount: { type: Number, default: 0 }
     }],
 
     runAt: Date,
