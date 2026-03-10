@@ -12,6 +12,8 @@ export interface ILead {
     pipelineId: Types.ObjectId;
     stageId?: Types.ObjectId;
     campaignId?: Types.ObjectId;
+    isUnsubscribed?: boolean;
+    unsubscribedAt?: Date;
 }
 
 export interface ILeadCreate {

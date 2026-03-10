@@ -9,7 +9,9 @@ import {
   startCampaign,
   deleteCampaignStep,
   getCampaignSteps,
-  updateCampaignStep
+  updateCampaignStep,
+  trackEmailOpen,
+  unsubscribeEmail
 } from "./campaign.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
 
@@ -18,6 +20,9 @@ const router = express.Router();
 router.get("/health", (req, res) => {
   res.send("Campaing Route running properly");
 });
+
+router.get("/track/:batchId/:leadId", trackEmailOpen);
+router.get("/unsubscribe/:leadId", unsubscribeEmail);
 
 router.use(requireAuth);
 

@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import { CampaingService } from "./campaign.service";
 import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
 import type { ICampaignCreate, ICampaignUpdate, ICampaignStepCreate, ILead } from "./campaign.types";
+import { CampaignBatch } from "./models/campaignBatch.model";
+import { Lead } from "../lead/lead.model";
 
 export const createCampaing = async (req: Request, res: Response) => {
   try {
@@ -83,6 +85,7 @@ export const getCampaings = async (req: Request, res: Response) => {
       });
     }
     const campaings = await CampaingService.getCampaings(workspaceId, userId);
+
     return res.status(200).json({
       success: true,
       message: "Campaings fetched successfully",
@@ -245,7 +248,6 @@ export const deleteCampaignStep = async (req: Request, res: Response) => {
 export const getCampaignSteps = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const userId = authReq.user.id;
     const campaignId = req.params.campaignId as string;
     if (!campaignId) {
       return res.status(400).json({
@@ -294,4 +296,87 @@ export const updateCampaignStep = async (req: Request, res: Response) => {
     });
   }
 
+};
+
+export const trackEmailOpen = async (req: Request, res: Response) => {
+  try {
+    const { batchId, leadId } = req.params;
+
+    if (!batchId || !leadId) {
+      return res.status(400).send("Missing parameters");
+    }
+
+    const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+
+    res.writeHead(200, {
+      "Content-Type": "image/gif",
+      "Content-Length": pixel.length,
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0"
+    });
+    res.end(pixel);
+
+    CampaignBatch.findOneAndUpdate(
+      {
+        _id: batchId,
+        "leads.leadId": leadId
+      },
+      {
+        $set: { "leads.$.openedAt": new Date() },
+        $inc: { "leads.$.openCount": 1 }
+      }
+    ).catch(console.error);
+
+  } catch (error) {
+    console.error("Error in email tracking pixel:", error);
+    const pixel = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+    res.writeHead(200, { "Content-Type": "image/gif" });
+    res.end(pixel);
+  }
+};
+
+export const unsubscribeEmail = async (req: Request, res: Response) => {
+  try {
+    const { leadId } = req.params;
+
+    if (!leadId) {
+      return res.status(400).send("Lead ID is required to unsubscribe.");
+    }
+
+    const updatedLead = await Lead.findByIdAndUpdate(
+      leadId,
+      {
+        $set: {
+          isUnsubscribed: true,
+          unsubscribedAt: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedLead) {
+      return res.status(404).send(`
+        <html>
+          <body style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+            <h2>Lead not found</h2>
+            <p>We could not process your unsubscribe request because this record does not exist.</p>
+          </body>
+        </html>
+      `);
+    }
+
+    return res.status(200).send(`
+      <html>
+        <body style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+          <h2 style="color: #4CAF50;">Unsubscribed Successfully</h2>
+          <p>You have been successfully removed from our mailing list. You will no longer receive automated campaign emails from us.</p>
+        </body>
+      </html>
+    `);
+
+  } catch (error) {
+    console.error("Error unsubscribing lead:", error);
+    return res.status(500).send("Internal server error during unsubscribe.");
+  }
 };

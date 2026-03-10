@@ -44,7 +44,17 @@ export class CampaingService {
     const campaings = await Campaing.find({ workspaceId, userId })
       .sort({ createdAt: -1 })
       .lean();
-    return campaings;
+    const datas = campaings.map(c => {
+      return {
+        name: c.name,
+        description: c.description,
+        status: c.status,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        _id: c._id,
+      }
+    });
+    return datas;
   }
 
   static async createCampaignStep(data: ICampaignStepCreate) {
