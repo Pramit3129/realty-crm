@@ -37,7 +37,6 @@ const emailHistorySchema = new Schema<IEmailHistory>(
         messageId: {
             type: String,
             required: true,
-            unique: true,
         },
         receivedAt: {
             type: Date,
@@ -49,8 +48,9 @@ const emailHistorySchema = new Schema<IEmailHistory>(
     }
 );
 
+// Compound unique index: same message can link to multiple leads, but no true duplicates
+emailHistorySchema.index({ messageId: 1, leadId: 1 }, { unique: true });
 emailHistorySchema.index({ leadId: 1 });
 emailHistorySchema.index({ realtorId: 1 });
-emailHistorySchema.index({ messageId: 1 });
 
 export const EmailHistory = model<IEmailHistory>("EmailHistory", emailHistorySchema);

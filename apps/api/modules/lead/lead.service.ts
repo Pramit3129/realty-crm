@@ -6,6 +6,7 @@ import { PipelineStage } from "../pipelineStage/pipelineStage.model";
 import { CampaignBatch } from "../campaign/models/campaignBatch.model";
 import { ActivityService } from "../activity/activity.service";
 import { ActivityType } from "../activity/activity.types";
+import { EmailHistory } from "../emailIntegration/emailHistory.model";
 
 
 export class LeadService {
@@ -103,6 +104,33 @@ export class LeadService {
         return null;
     }
 
+    static async getLeadEmails(realtorId: string, leadId: string) {
+        const lead = await Lead.findById(leadId).lean();
+        if (!lead) {
+            throw new Error("Lead not found");
+        }
+
+        let hasAccess = false;
+        if (lead.realtorId.toString() === realtorId) {
+            hasAccess = true;
+        } else {
+            const membership = await Membership.findOne({ workspace: lead.workspaceId, user: realtorId, isRemoved: false });
+            if (membership?.role === "OWNER") {
+                hasAccess = true;
+            }
+        }
+
+        if (!hasAccess) {
+            throw new Error("Unauthorized access to lead emails");
+        }
+
+        const emails = await EmailHistory.find({ leadId })
+            .sort({ receivedAt: -1 })
+            .lean();
+
+        return emails;
+    }
+
     static async updateLead(realtorId: string, leadId: string, leadData: ILeadUpdate) {
         if (leadData.pipelineId) {
             const currentLead = await Lead.findOne({ realtorId, _id: leadId }).lean();
@@ -127,7 +155,7 @@ export class LeadService {
             if (leadData.email) changes.push(`email to ${leadData.email}`);
             if (leadData.phone) changes.push(`phone to ${leadData.phone}`);
             if (leadData.status) changes.push(`status to ${leadData.status}`);
-            
+
             if (changes.length > 0) {
                 await ActivityService.logActivity({
                     leadId: leadId,

@@ -23,9 +23,9 @@ export class NoteService {
       for (const leadId of noteData.relations) {
         await ActivityService.logActivity({
           leadId: leadId.toString(),
-          realtorId: noteData.realtorId,
+          realtorId: noteData.realtorId.toString(),
           type: ActivityType.NOTE_ADDED,
-          content: `Added a note: ${noteData.body.substring(0, 50)}${noteData.body.length > 50 ? "..." : ""}`
+          content: `Added a note: ${noteData.body ? (noteData.body.substring(0, 50) + (noteData.body.length > 50 ? "..." : "")) : ""}`
         });
       }
     }

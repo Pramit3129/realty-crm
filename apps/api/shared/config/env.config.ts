@@ -34,6 +34,10 @@ export const env = {
   GCP_REGION: process.env.GCP_REGION,
   GCP_QUEUE_NAME: process.env.GCP_QUEUE_NAME,
 
+  // Gmail Pub/Sub
+  GMAIL_PUBSUB_TOPIC: process.env.GMAIL_PUBSUB_TOPIC || "gmail-push-notifications",
+  GMAIL_CONCURRENCY_LIMIT: Number(process.env.GMAIL_CONCURRENCY_LIMIT) || 5,
+
   // Backend / Worker
   BACKEND_URL: process.env.BACKEND_URL,
   INTERNAL_SECRET: process.env.INTERNAL_SECRET,

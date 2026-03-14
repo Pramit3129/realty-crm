@@ -45,6 +45,19 @@ export async function getLeadDetails(req: Request, res: Response) {
     }
 }
 
+// GET /details/:id/emails
+export async function getLeadEmails(req: Request, res: Response) {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const leadId = req.params.id as string;
+        const realtorId = authReq.user.id;
+        const emails = await LeadService.getLeadEmails(realtorId, leadId);
+        res.status(200).json({ emails });
+    } catch (error: any) {
+        res.status(500).json({ message: error.message || "Failed to fetch lead emails" });
+    }
+}
+
 // PUT /details/:id
 export async function updateLead(req: Request, res: Response) {
     try {

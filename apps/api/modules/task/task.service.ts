@@ -38,7 +38,7 @@ export class TaskService {
       for (const leadId of taskData.relations) {
         await ActivityService.logActivity({
           leadId: leadId.toString(),
-          realtorId: taskData.realtorId,
+          realtorId: taskData.realtorId.toString(),
           type: ActivityType.TASK_ADDED,
           content: `Added task: ${taskData.title}`
         });

@@ -7,6 +7,8 @@ export interface IEmailIntegration extends Document {
     refreshToken?: string;
     expiresAt?: Date;
     lastHistoryId?: string;
+    watchExpiration?: Date;
+    lastFullSyncAt?: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -37,6 +39,12 @@ const emailIntegrationSchema = new Schema<IEmailIntegration>(
         },
         lastHistoryId: {
             type: String,
+        },
+        watchExpiration: {
+            type: Date,
+        },
+        lastFullSyncAt: {
+            type: Date,
         },
     },
     {
