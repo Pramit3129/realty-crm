@@ -129,6 +129,7 @@ class AuthService {
             payload.name ||
             `${payload.given_name || ""} ${payload.family_name || ""}`.trim() ||
             "User";
+        const avatarUrl = payload.picture;
 
         let user = await userService.findByEmail(email);
         if (!user) {
@@ -138,7 +139,14 @@ class AuthService {
                 name,
                 email,
                 password: hashedPassword,
+                role: "user",
             });
+        }
+
+        // Update avatar from Google if it has changed or is missing
+        if (avatarUrl && user.avatarUrl !== avatarUrl) {
+            await userService.updateUser(String(user._id), { avatarUrl });
+            user.avatarUrl = avatarUrl;
         }
 
         const authTokens = this.generateTokens(

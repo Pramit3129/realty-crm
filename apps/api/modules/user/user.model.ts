@@ -47,6 +47,7 @@ const userSchema = new Schema<IUser>(
             enum: ['free', 'pro', 'enterprise'],
             default: 'free',
         },
+        avatarUrl: String,
         onboardingComplete: {
             type: Boolean,
             default: false,
