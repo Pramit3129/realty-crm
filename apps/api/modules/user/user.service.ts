@@ -26,7 +26,7 @@ class UserService {
 
     async getAllUsers() {
         const users = await User.find().sort({ createdAt: -1 });
-        return users.map((user) => ({
+        return users.map((user: any) => ({
             id: user._id.toString(),
             name: user.name,
             email: user.email,
@@ -36,12 +36,52 @@ class UserService {
         }));
     }
 
+    async updateOnboardingData(userId: string, data: Partial<IUser>): Promise<IUser | null> {
+        return User.findByIdAndUpdate(
+            userId,
+            {
+                ...data,
+                onboardingComplete: true,
+            },
+            { returnDocument: "after" },
+        );
+    }
+
+    async updateUser(userId: string, data: Partial<IUser>): Promise<IUser | null> {
+        return User.findByIdAndUpdate(
+            userId,
+            { $set: data },
+            { returnDocument: "after" },
+        );
+    }
+
+    async deleteUser(userId: string): Promise<boolean> {
+        const result = await User.findByIdAndDelete(userId);
+        return !!result;
+    }
+
     toResponse(user: IUser): UserResponse {
         return {
-            id: user._id.toString(),
+            id: (user as any)._id.toString(),
             name: user.name,
             email: user.email,
             role: user.role,
+            avatarUrl: user.avatarUrl,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            businessName: user.businessName,
+            licenseNumber: user.licenseNumber,
+            phoneNumber: user.phoneNumber,
+            address: user.address,
+            professionalEmail: user.professionalEmail,
+            yearsInBusiness: user.yearsInBusiness,
+            calendlyLink: user.calendlyLink,
+            markets: user.markets,
+            signatureImageUrl: user.signatureImageUrl,
+            brandLogoUrl: user.brandLogoUrl,
+            brokerageLogoUrl: user.brokerageLogoUrl,
+            brokerageName: user.brokerageName,
+            subscriptionPlan: user.subscriptionPlan,
         };
     }
 }

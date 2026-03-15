@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Mail, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, ArrowRight, Loader2, ShieldCheck, Globe } from "lucide-react";
 import { API_BASE_URL, getToken } from "@/lib/auth";
 import EmailAuthForm from "./EmailAuthForm";
+import { cn } from "@/lib/utils";
+import OnboardingForm from "./OnboardingForm";
 
 // ── Google Icon (inline SVG) ──────────────────────────────────────────
 function GoogleIcon() {
@@ -34,19 +35,11 @@ function GoogleIcon() {
   );
 }
 
-// ── Props ─────────────────────────────────────────────────────────────
 interface AuthModalProps {
-  /** Whether the user already has a valid token */
   isAuthenticated: boolean;
 }
 
-// ── View types ────────────────────────────────────────────────────────
-// "providers"  → Google / Email buttons
-// "email"      → Email auth form (login or register)
-// "workspace"  → Workspace creation (shown after auth)
-type ModalView = "providers" | "email" | "workspace";
-
-// ── AuthModal Component ───────────────────────────────────────────────
+type ModalView = "providers" | "email" | "workspace" | "onboarding";
 
 export default function AuthModal({ isAuthenticated }: AuthModalProps) {
   const [view, setView] = useState<ModalView>(
@@ -56,19 +49,14 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // ── Handlers ────────────────────────────────────────────────────────
-
-  /** Redirect the browser to the backend Google OAuth endpoint */
   function handleGoogleLogin() {
     window.location.href = `${API_BASE_URL}/auth/google`;
   }
 
-  /** Called after email login/register succeeds */
   function handleEmailSuccess() {
     window.location.reload();
   }
 
-  /** Submit the workspace name to the backend */
   async function handleCreateWorkspace() {
     if (!workspaceName.trim()) {
       setError("Workspace name is required");
@@ -95,8 +83,7 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
         return;
       }
 
-      // Workspace created – go to dashboard
-      window.location.href = "/dashboard";
+      setView("onboarding");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -104,144 +91,113 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
     }
   }
 
-  // ── Heading helpers ─────────────────────────────────────────────────
-  function getHeading() {
-    switch (view) {
-      case "providers":
-        return "Welcome to RealtyCRM";
-      case "email":
-        return ""; // EmailAuthForm renders its own heading
-      case "workspace":
-        return "Create your Workspace";
-    }
-  }
-
-  function getSubheading() {
-    switch (view) {
-      case "providers":
-        return "Sign in to manage your real estate pipeline";
-      case "email":
-        return "";
-      case "workspace":
-        return "Give your workspace a name to get started";
-    }
-  }
-
-  // ── Render ──────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <Card className="relative w-full max-w-md overflow-hidden border-border/50 bg-card shadow-2xl shadow-black/40">
-        {/* Subtle gradient glow at the top */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-
-        <CardContent className="flex flex-col items-center gap-6 px-8 pt-10 pb-6">
-          {/* Logo */}
-          <div className="rounded-xl border border-border/50 bg-background/50 p-3 shadow-sm">
-            <Image
-              src="/logo.png"
-              alt="RealtyCRM Logo"
-              width={40}
-              height={40}
-              className="rounded-md"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+      <div className={cn(
+        "relative w-full bg-background rounded-2xl shadow-2xl border border-border/50 overflow-hidden transition-all duration-300",
+        view === "onboarding" ? "max-w-xl" : "max-w-[400px]"
+      )}>
+        <div className="p-8 sm:p-10 flex flex-col gap-6">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <Image 
+              src="/logo.png" 
+              alt="RealtyGenie Logo" 
+              width={48} 
+              height={48} 
+              className="object-contain"
             />
-          </div>
-
-          {/* Heading (hidden for email view — it has its own) */}
-          {view !== "email" && (
-            <div className="text-center">
-              <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                {getHeading()}
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-bold tracking-tight">
+                {view === "providers" && "Welcome back"}
+                {view === "workspace" && "Create Workspace"}
+                {view === "onboarding" && "Complete Your Profile"}
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {getSubheading()}
+              <p className="text-sm text-muted-foreground/80">
+                {view === "providers" && "Choose how you'd like to continue"}
+                {view === "workspace" && "Let's name your professional portal"}
+                {view === "onboarding" && "Almost there! Just a few more details"}
               </p>
             </div>
-          )}
+          </div>
 
-          {/* ── Providers view ──────────────────────────────────────── */}
-          {view === "providers" && (
-            <div className="flex w-full flex-col gap-3">
-              <Button
-                variant="outline"
-                onClick={handleGoogleLogin}
-                className="group flex w-full items-center justify-center gap-2.5 border-border/60 bg-background/50 py-5 transition-all hover:border-border hover:bg-accent/50"
-              >
-                <GoogleIcon />
-                <span>Continue with Google</span>
-              </Button>
+          <div className="w-full">
+            {/* ── Providers view ──────────────────────────────────────── */}
+            {view === "providers" && (
+              <div className="flex w-full flex-col gap-3">
+                <Button
+                  onClick={handleGoogleLogin}
+                  className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 transition-all font-semibold gap-3 rounded-xl shadow-lg"
+                >
+                  <GoogleIcon />
+                  <span>Continue with Google</span>
+                </Button>
 
-              <Button
-                variant="outline"
-                onClick={() => setView("email")}
-                className="group flex w-full items-center justify-center gap-2.5 border-border/60 bg-background/50 py-5 transition-all hover:border-border hover:bg-accent/50"
-              >
-                <Mail className="h-4 w-4" />
-                <span>Continue with Email</span>
-              </Button>
-            </div>
-          )}
-
-          {/* ── Email auth view ─────────────────────────────────────── */}
-          {view === "email" && (
-            <EmailAuthForm
-              onBack={() => setView("providers")}
-              onSuccess={handleEmailSuccess}
-            />
-          )}
-
-          {/* ── Workspace view ──────────────────────────────────────── */}
-          {view === "workspace" && (
-            <div className="flex w-full flex-col gap-4">
-              <div className="space-y-2">
-                <Input
-                  placeholder="e.g. My Real Estate Team"
-                  value={workspaceName}
-                  onChange={(e) => setWorkspaceName(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && handleCreateWorkspace()
-                  }
-                  className="border-border/60 bg-background/50 py-5 transition-colors focus:border-primary/60"
-                  autoFocus
-                />
-                {error && <p className="text-xs text-destructive">{error}</p>}
+                <Button
+                  variant="outline"
+                  onClick={() => setView("email")}
+                  className="w-full h-12 border-border/60 bg-background/50 hover:bg-accent/50 transition-all font-semibold gap-3 rounded-xl"
+                >
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>Continue with Email</span>
+                </Button>
+                
+                <p className="text-[11px] text-center text-muted-foreground/60 mt-2 px-4">
+                  By continuing, you agree to our Terms & Privacy policy.
+                </p>
               </div>
+            )}
 
-              <Button
-                onClick={handleCreateWorkspace}
-                disabled={isSubmitting || !workspaceName.trim()}
-                className="w-full py-5 transition-all"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <span>Create Workspace</span>
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </CardContent>
+            {/* ── Email auth view ─────────────────────────────────────── */}
+            {view === "email" && (
+              <div className="animate-in fade-in slide-in-from-right-2 duration-300">
+                <EmailAuthForm
+                  onBack={() => setView("providers")}
+                  onSuccess={handleEmailSuccess}
+                />
+              </div>
+            )}
 
-        {/* Footer */}
-        <Separator className="opacity-50" />
-        <CardFooter className="flex items-center justify-center gap-1.5 py-4 text-xs text-muted-foreground">
-          <a
-            href="#"
-            className="transition-colors hover:text-foreground hover:underline"
-          >
-            Privacy Policy
-          </a>
-          <span className="text-muted-foreground/50">•</span>
-          <a
-            href="#"
-            className="transition-colors hover:text-foreground hover:underline"
-          >
-            Terms of Service
-          </a>
-        </CardFooter>
-      </Card>
+            {/* ── Workspace view ──────────────────────────────────────── */}
+            {view === "workspace" && (
+              <div className="flex w-full flex-col gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="space-y-2">
+                  <Input
+                    placeholder="e.g. Diamond Realty Group"
+                    value={workspaceName}
+                    onChange={(e) => setWorkspaceName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateWorkspace()}
+                    className="h-12 border-border/60 bg-background/50 focus-visible:ring-1 rounded-xl"
+                    autoFocus
+                  />
+                  {error && <p className="text-xs font-medium text-destructive ml-1">{error}</p>}
+                </div>
+
+                <Button
+                  onClick={handleCreateWorkspace}
+                  disabled={isSubmitting || !workspaceName.trim()}
+                  className="w-full h-12 shadow-lg transition-all active:scale-[0.98] rounded-xl"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <span>Setup Workspace</span>
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* ── Onboarding view ───────────────────────────────────────── */}
+            {view === "onboarding" && (
+              <div className="w-full animate-in fade-in slide-in-from-right-4 duration-500">
+                <OnboardingForm onComplete={() => window.location.href = "/dashboard"} />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

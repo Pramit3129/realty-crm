@@ -3,6 +3,7 @@ import { verifyAccessToken } from "../utils/token";
 import { User } from "../../modules/user/user.model";
 
 export interface AuthenticatedUser {
+    _id: string;
     id: string;
     email: string;
     name: string;
@@ -49,6 +50,7 @@ async function requireAuth(
         }
 
         (req as AuthenticatedRequest).user = {
+            _id: user._id.toString(),
             id: user.id,
             email: user.email,
             name: user.name,

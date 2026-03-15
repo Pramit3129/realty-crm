@@ -4,11 +4,12 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --watch index.ts"
+    "dev": "bun run --env-file=.env --watch index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/cors": "^2.8.19",
+    "@types/multer": "^2.1.0",
     "@types/supertest": "^7.2.0",
     "supertest": "^7.2.2"
   },
@@ -18,13 +19,18 @@
   "dependencies": {
     "@google-cloud/pubsub": "^5.3.0",
     "@google-cloud/tasks": "^6.2.1",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-label": "^2.1.8",
     "@types/bcryptjs": "^3.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/dotenv": "^8.2.3",
     "@types/express": "^5.0.6",
+    "@types/ioredis": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "base64url": "^3.0.1",
     "bcryptjs": "^3.0.3",
+    "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
@@ -33,7 +39,8 @@
     "googleapis": "^171.4.0",
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.2.2",
+    "mongoose": "^9.3.0",
+    "multer": "^2.1.1",
     "openai": "^6.25.0",
     "p-limit": "^6.2.0",
     "resend": "^6.9.3",

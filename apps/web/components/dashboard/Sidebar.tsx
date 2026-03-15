@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare, Megaphone } from "lucide-react";
+import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare, Megaphone, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -23,7 +23,8 @@ export type ActiveViewType =
   | "members"
   | "tasks-all" 
   | "tasks-status" 
-  | "tasks-me";
+  | "tasks-me"
+  | "settings";
 
 // ── Props ─────────────────────────────────────────────────────────────
 interface SidebarProps {
@@ -216,6 +217,32 @@ export default function Sidebar({
       </nav>
 
       <div className="flex-1" />
+
+       {/* ── Other Section ─────────────────────────────────────────── */}
+       <div className="px-4 pt-4 pb-2">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60">
+          Other
+        </p>
+      </div>
+      <nav className="flex flex-col gap-0.5 px-2 pb-4">
+        <button
+          onClick={() => onViewChange("settings")}
+          className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
+            activeView === "settings"
+              ? "bg-white/[0.06] text-sidebar-foreground"
+              : "text-muted-foreground hover:bg-white/[0.04] hover:text-sidebar-foreground"
+          }`}
+        >
+          <Settings className="h-4 w-4" />
+          <span>Settings</span>
+        </button>
+        <button
+          className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-white/[0.04] hover:text-sidebar-foreground"
+        >
+          <StickyNote className="h-4 w-4" />
+          <span>Documentation</span>
+        </button>
+      </nav>
 
       <CreateWorkspaceModal
         isOpen={isCreateModalOpen}
