@@ -10,6 +10,7 @@ import MembersView from "@/components/dashboard/MembersView";
 import TasksView from "@/components/dashboard/TasksView";
 import CampaignsView from "@/components/dashboard/CampaignsView";
 import SettingsView from "@/components/dashboard/SettingsView";
+import InboxView from "@/components/dashboard/InboxView";
 import type { ActiveViewType } from "@/components/dashboard/Sidebar";
 import {
   getToken,
@@ -129,6 +130,8 @@ function DashboardContent() {
           workspaceId={activeWorkspaceId}
           userRole={activeWorkspace?.role || "AGENT"}
         />
+      ) : activeView === "inbox" ? (
+        <InboxView />
       ) : activeView === "campaigns" ? (
         <CampaignsView
           workspaceId={activeWorkspaceId}

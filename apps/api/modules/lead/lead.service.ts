@@ -131,6 +131,16 @@ export class LeadService {
         return emails;
     }
 
+    static async getAllEmails(realtorId: string) {
+        const emails = await EmailHistory.find({ realtorId })
+            .populate("leadId", "name email")
+            .sort({ receivedAt: -1 })
+            .limit(50)
+            .lean();
+
+        return emails;
+    }
+
     static async updateLead(realtorId: string, leadId: string, leadData: ILeadUpdate) {
         if (leadData.pipelineId) {
             const currentLead = await Lead.findOne({ realtorId, _id: leadId }).lean();

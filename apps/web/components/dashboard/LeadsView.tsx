@@ -2065,14 +2065,14 @@ function EmailsTab({ lead, workspaceId }: { lead: Lead; workspaceId: string }) {
   const fetchCommunications = useCallback(async () => {
     try {
       const res = await fetch(
-        `${API_BASE_URL}/communication/lead/${lead._id}`,
+        `${API_BASE_URL}/lead/details/${lead._id}/emails`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
       if (res.ok) {
         const data = await res.json();
-        setCommunications(data.communications || []);
+        setCommunications(data.emails || []);
       }
     } catch {
       /* silent */
@@ -2184,30 +2184,54 @@ function EmailsTab({ lead, workspaceId }: { lead: Lead; workspaceId: string }) {
               communications.map((comm) => (
                 <div
                   key={comm._id}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 space-y-2 relative overflow-hidden group"
+                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 space-y-2 relative overflow-hidden group cursor-pointer hover:bg-white/[0.04] transition-colors"
+                  onClick={() => {
+                    const win = window.open("", "_blank");
+                    if (win) {
+                      win.document.write(`
+                        <html>
+                          <head>
+                            <title>${comm.subject}</title>
+                            <style>
+                              body { font-family: sans-serif; padding: 20px; color: #333; line-height: 1.6; }
+                              .header { border-bottom: 1px solid #eee; margin-bottom: 20px; padding-bottom: 10px; }
+                              .subject { font-size: 20px; font-weight: bold; }
+                              .meta { color: #666; font-size: 14px; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="header">
+                              <div class="subject">${comm.subject}</div>
+                              <div class="meta">From: ${comm.senderEmail} | Received: ${new Date(comm.receivedAt).toLocaleString()}</div>
+                            </div>
+                            <div>${comm.body}</div>
+                          </body>
+                        </html>
+                      `);
+                      win.document.close();
+                    }
+                  }}
                 >
-                  <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Mail className="h-8 w-8" />
+                  <div className="absolute top-1 right-2 p-1 opacity-5 group-hover:opacity-20 transition-opacity">
+                    <Mail className="h-6 w-6" />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[12px] font-semibold text-foreground truncate max-w-[200px]">
-                      {comm.subject}
-                    </p>
-                    <span className="text-[10px] text-muted-foreground/40">
-                      {timeAgo(comm.sentAt)}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
-                    {comm.body}
-                  </p>
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <div className="flex h-3 w-3 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
-                      <User className="h-2 w-2" />
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-semibold text-foreground truncate">
+                        {comm.subject || "(No Subject)"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
+                        {comm.senderEmail}
+                      </p>
                     </div>
-                    <span className="text-[10px] text-muted-foreground/60">
-                      Sent by {comm.realtorId?.name || "You"}
+                    <span className="text-[10px] text-muted-foreground/40 whitespace-nowrap">
+                      {timeAgo(comm.receivedAt)}
                     </span>
                   </div>
+                  <div 
+                    className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 mt-1 opacity-80"
+                    dangerouslySetInnerHTML={{ __html: comm.body?.replace(/<[^>]*>?/gm, ' ') }} 
+                  />
                 </div>
               ))
             )}
