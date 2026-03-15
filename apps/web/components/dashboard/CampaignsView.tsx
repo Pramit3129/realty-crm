@@ -604,7 +604,6 @@ function CampaignLeadsTab({
         setLeads(data.leads || []);
       }
     } catch {
-      // ignore
     } finally {
       setLoading(false);
     }
