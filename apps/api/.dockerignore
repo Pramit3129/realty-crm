@@ -1,0 +1,31 @@
+node_modules
+!.env
+.env.*
+!.env.example
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+.turbo
+.cache
+.eslintcache
+
+# Build & coverage outputs
+dist
+out
+coverage
+*.tgz
+*.lcov
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Docs
+README.md
