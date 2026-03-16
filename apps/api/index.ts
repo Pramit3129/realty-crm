@@ -13,11 +13,20 @@ async function startServer() {
 
         if (env.NODE_ENV === "development") {
             console.log("Development mode: Starting local scheduler (every 60s)...");
+            let running = false;
             setInterval(async () => {
+                if (running) {
+                    console.warn("[scheduler] previous tick still running — skipping");
+                    return;
+                }
+                running = true;
                 try {
-                    await SchedulerService.run();
+                    const stats = await SchedulerService.run();
+                    console.log("[scheduler] dev tick:", stats);
                 } catch (err) {
-                    console.error("Local scheduler error:", err);
+                    console.error("[scheduler] dev tick error:", err);
+                } finally {
+                    running = false;
                 }
             }, 60000);
         }
