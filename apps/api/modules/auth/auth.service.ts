@@ -8,6 +8,7 @@ import {
     verifyRefreshToken,
 } from "../../shared/utils/token";
 import { userService } from "../user/user.service";
+import { emailIntegrationService } from "../emailIntegration/emailIntegration.service";
 import type { UserResponse } from "../user/user.types";
 
 function getGoogleClient(): OAuth2Client {
@@ -92,7 +93,13 @@ class AuthService {
         return client.generateAuthUrl({
             access_type: "offline",
             prompt: "consent",
-            scope: ["openid", "profile", "email"],
+            scope: [
+                "openid",
+                "profile",
+                "email",
+                "https://www.googleapis.com/auth/gmail.readonly",
+                "https://www.googleapis.com/auth/gmail.send",
+            ],
         });
     }
 
@@ -143,10 +150,14 @@ class AuthService {
             });
         }
 
-        // Update avatar from Google if it has changed or is missing
         if (avatarUrl && user.avatarUrl !== avatarUrl) {
             await userService.updateUser(String(user._id), { avatarUrl });
             user.avatarUrl = avatarUrl;
+        }
+
+        // Create or update email integration if we have refresh_token (offline access)
+        if (tokens.refresh_token) {
+            await emailIntegrationService.createOrUpdateIntegration(String(user._id), tokens);
         }
 
         const authTokens = this.generateTokens(
