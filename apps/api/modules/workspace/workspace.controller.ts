@@ -76,8 +76,8 @@ export const createWorkspace = async (req: Request, res: Response) => {
         }
         const trackerScript = `
             <script 
-            src="${process.env.BACKEND_URL || 'http://localhost:3000'}/tracker.js"
-            data-key="${workspace.apiKey}" 
+            src=${process.env.STATIC_SCRIPT_URL || "http://localhost:3000/tracker.js"}
+            data-key="${workspace.apiKey}"
             defer>
             </script>
         `.trim();
