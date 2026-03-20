@@ -10,13 +10,13 @@ const limiter = rateLimit({
   max: 200
 });
 
-router.use("/api/track-batch", limiter);
-router.use("/api/identify", limiter);
+router.use("/track-batch", limiter);
+router.use("/identify", limiter);
 
-router.post("/api/track-batch", trackBatch);
-router.post("/api/identify", identifyVisitor);
+router.post("/track-batch", trackBatch);
+router.post("/identify", identifyVisitor);
 
-router.get("/api/v1/trackers/workspace/:workspaceId/events", requireAuth, getWorkspaceEvents);
-router.get("/api/v1/trackers/workspace/:workspaceId/visitors", requireAuth, getWorkspaceVisitors);
+router.get("/workspace/:workspaceId/events", requireAuth, getWorkspaceEvents);
+router.get("/workspace/:workspaceId/visitors", requireAuth, getWorkspaceVisitors);
 
 export default router;

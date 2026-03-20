@@ -59,6 +59,6 @@ app.use("/api/v1/communication", communicationModule);
 app.use("/api/v1/activity", activityModule);
 app.use("/api/v1/upload", uploadModule);
 
-app.use("/", trackerModule);
+app.use("/api/v1/trackers", trackerModule);
 
 export default app;
