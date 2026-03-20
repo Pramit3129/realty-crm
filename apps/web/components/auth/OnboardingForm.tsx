@@ -19,24 +19,24 @@ import {
   Phone,
   Mail,
   Calendar,
-  ShieldCheck
+  ShieldCheck,
+  Search
 } from "lucide-react";
 import { API_BASE_URL, getToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { CANADA_CITIES } from "@/lib/constants";
 
 interface OnboardingFormProps {
   onComplete: () => void;
 }
 
-const CANADA_CITIES = [
-  "Toronto", "Vancouver", "Montreal", "Calgary", "Edmonton", "Ottawa", "Winnipeg", "Quebec City", "Hamilton", "Kitchener", "London", "Victoria", "Halifax", "Oshawa", "Windsor"
-];
 
 export default function OnboardingForm({ onComplete }: OnboardingFormProps): React.JSX.Element {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [marketSearchText, setMarketSearchText] = useState("");
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -81,7 +81,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
       if (!formData.businessName.trim()) newErrors.businessName = "Required";
       if (!formData.licenseNumber.trim()) newErrors.licenseNumber = "Required";
       if (!formData.address.trim()) newErrors.address = "Required";
-      if (!formData.calendlyLink.trim()) newErrors.calendlyLink = "Required";
+      // Calendly no longer mandatory
       if (formData.yearsInBusiness < 0) newErrors.yearsInBusiness = "Cannot be negative";
       
       const phoneRegex = /^\+?[\d\s-]{10,}$/;
@@ -202,7 +202,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
   const renderStep1 = () => (
     <div className="grid grid-cols-2 gap-x-3 gap-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">First Name</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">First Name</label>
         <div className="relative">
           <User className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -219,7 +219,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.firstName && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.firstName}</p>}
       </div>
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Last Name</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Last Name</label>
         <div className="relative">
           <User className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -236,7 +236,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.lastName && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.lastName}</p>}
       </div>
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Business Name</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Business Name</label>
         <div className="relative">
           <Briefcase className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -253,7 +253,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.businessName && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.businessName}</p>}
       </div>
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">License #</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">License #</label>
         <div className="relative">
           <ShieldCheck className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -270,7 +270,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.licenseNumber && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.licenseNumber}</p>}
       </div>
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Phone</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Phone</label>
         <div className="relative">
           <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -287,7 +287,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.phoneNumber && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.phoneNumber}</p>}
       </div>
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Email</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Email</label>
         <div className="relative">
           <Mail className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -304,7 +304,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.professionalEmail && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.professionalEmail}</p>}
       </div>
       <div className="space-y-1 col-span-2">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Address</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Address</label>
         <div className="relative">
           <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -321,7 +321,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.address && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.address}</p>}
       </div>
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Years</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Years</label>
         <div className="relative">
           <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -338,7 +338,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         {errors.yearsInBusiness && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.yearsInBusiness}</p>}
       </div>
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Calendly</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Calendly</label>
         <div className="relative">
           <ArrowRight className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -357,35 +357,80 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
     </div>
   );
 
-  const renderStep2 = () => (
-    <div className="space-y-3 animate-in fade-in slide-in-from-right-2 duration-300">
-      <div className="flex justify-between items-center">
-        <p className="text-[11px] text-muted-foreground font-medium">Select your active markets:</p>
-        {errors.markets && <p className="text-[10px] text-destructive font-bold animate-pulse">{errors.markets}</p>}
+  const renderStep2 = () => {
+    const filteredCities = CANADA_CITIES.filter(city => 
+      city.toLowerCase().includes(marketSearchText.toLowerCase())
+    );
+
+    return (
+      <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-300">
+        <div className="flex justify-between items-center mb-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground/80 ml-1">Select Active Markets</p>
+          {errors.markets && <p className="text-[10px] text-destructive font-bold animate-pulse">{errors.markets}</p>}
+        </div>
+        
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/50" />
+          <Input 
+            placeholder="Search cities..." 
+            value={marketSearchText}
+            onChange={(e) => setMarketSearchText(e.target.value)}
+            className="h-9 pl-8 bg-background/40 text-[11px] border-border/40 focus-visible:ring-1"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 max-h-[200px] overflow-y-auto pr-1.5 custom-scrollbar pb-2">
+          {filteredCities.length > 0 ? (
+            filteredCities.map(city => (
+              <button
+                key={city}
+                type="button"
+                onClick={() => handleMarketToggle(city)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border",
+                  formData.markets.includes(city)
+                    ? "bg-foreground text-background border-foreground shadow-sm shadow-foreground/20"
+                    : "bg-background/40 text-muted-foreground border-border/40 hover:border-foreground/40 hover:text-foreground"
+                )}
+              >
+                {city}
+              </button>
+            ))
+          ) : (
+            <p className="text-[11px] text-muted-foreground italic w-full text-center py-4">No cities found matching your search</p>
+          )}
+        </div>
+
+        {formData.markets.length > 0 && (
+          <div className="pt-2 border-t border-border/20">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-2">Selected Markets ({formData.markets.length})</p>
+            <div className="flex flex-wrap gap-1.5">
+              {formData.markets.map(city => (
+                <div 
+                  key={city}
+                  className="px-2 py-1 rounded-md bg-foreground/5 border border-foreground/10 text-[10px] font-bold flex items-center gap-1"
+                >
+                  {city}
+                  <button 
+                    type="button"
+                    onClick={() => handleMarketToggle(city)}
+                    className="p-0.5 hover:bg-foreground/10 rounded-full transition-colors"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {CANADA_CITIES.map(city => (
-          <button
-            key={city}
-            onClick={() => handleMarketToggle(city)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border",
-              formData.markets.includes(city)
-                ? "bg-foreground text-background border-foreground shadow-sm shadow-foreground/20"
-                : "bg-background/40 text-muted-foreground border-border/40 hover:border-foreground/40 hover:text-foreground"
-            )}
-          >
-            {city}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderStep3 = () => (
     <div className="space-y-4 animate-in fade-in slide-in-from-right-2 duration-300">
       <div className="space-y-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ml-0.5">Brokerage Name</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Brokerage Name</label>
         <div className="relative">
           <Briefcase className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
           <Input 
@@ -409,7 +454,7 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
           { id: "brokerageLogoUrl", label: "Broker Logo", icon: <Briefcase className="h-4 w-4" /> },
         ].map(field => (
           <div key={field.id} className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-muted-foreground text-center block w-full">{field.label}</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 text-center block w-full mb-1">{field.label}</label>
             <div 
               onClick={() => triggerUpload(field.id)}
               className={cn(

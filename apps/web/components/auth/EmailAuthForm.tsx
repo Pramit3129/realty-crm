@@ -129,7 +129,7 @@ export default function EmailAuthForm({
       {/* Name field (register only) */}
       {isRegister && (
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">
             Full Name
           </label>
           <Input
@@ -145,7 +145,7 @@ export default function EmailAuthForm({
 
       {/* Email */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">
+        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">
           Email
         </label>
         <Input
@@ -160,7 +160,7 @@ export default function EmailAuthForm({
 
       {/* Password */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">
+        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/80">
           Password
         </label>
         <div className="relative">
@@ -190,8 +190,8 @@ export default function EmailAuthForm({
 
       {/* Password strength hints (register only, shown when typing) */}
       {isRegister && password.length > 0 && (
-        <div className="rounded-lg border border-border/40 bg-background/30 p-3">
-          <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <div className="rounded-xl border border-border/60 bg-accent/5 p-4 shadow-sm animate-in zoom-in-95 duration-200">
+          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-border/10 pb-1.5 leading-none">
             Password requirements
           </p>
           <ul className="grid grid-cols-2 gap-x-4 gap-y-1">

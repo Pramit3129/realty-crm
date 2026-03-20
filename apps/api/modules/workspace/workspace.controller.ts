@@ -5,6 +5,7 @@ import { membershipService } from "../memberships/memberships.service";
 import { createWorkspaceSchema } from "./workspace.types";
 import { pipelineStageService } from "../pipelineStage/pipelineStage.service";
 import { PipelineService } from "../pipeline/pipeline.service";
+import { Workspace } from "./workspace.model";
 
 const pipelineService = new PipelineService();
 
@@ -93,5 +94,24 @@ export const getWorkspace = async (req: Request, res: Response) => {
         res.status(200).json(workspaces);
     } catch (error) {
         res.status(500).json({ message: "Failed to get workspaces" });
+    }
+};
+
+export const updateWorkspace = async (req: Request, res: Response) => {
+    try {
+        const id = req.params.id as string;
+        const { name, domain } = req.body;
+        const authUser = req as AuthenticatedRequest;
+
+        // Check if workspace exists and user is owner
+        const workspace = await Workspace.findOne({ _id: id, owner: authUser.user.id });
+        if (!workspace) {
+            return res.status(404).json({ message: "Workspace not found or unauthorized" });
+        }
+
+        const updatedWorkspace = await workspaceService.updateWorkspace(id, { name, domain });
+        res.status(200).json(updatedWorkspace);
+    } catch (error) {
+        res.status(500).json({ message: "Failed to update workspace" });
     }
 };
