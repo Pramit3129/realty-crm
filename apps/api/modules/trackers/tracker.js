@@ -26,6 +26,7 @@ export default {
 
   const visitorId = getVisitorId();
   let queue = [];
+  let identified = false;
 
   function track(event, data = {}) {
     queue.push({
@@ -44,16 +45,25 @@ export default {
       events: queue
     };
 
-    const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-    navigator.sendBeacon(API_URL, blob);
+    fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(() => {});
+
     queue = [];
   }
 
+  // 🔥 PAGE VIEW
   track("page_view", { url: window.location.href });
 
   setInterval(sendBatch, 5000);
   window.addEventListener("beforeunload", sendBatch);
 
+  // 🔥 AUTO FORM CAPTURE
   document.addEventListener("submit", function (e) {
     try {
       const form = e.target;
@@ -65,33 +75,48 @@ export default {
 
       if (!emailInput || !emailInput.value) return;
 
-      const email = emailInput.value.trim();
-      if (!email.includes("@")) return;
+      const email = emailInput.value.trim().toLowerCase();
 
-      const nameInput = form.querySelector("input[name='name'], input[name*='name']");
+      // Better validation
+      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) return;
+
+      // Prevent duplicate identify
+      if (identified) return;
+      identified = true;
+
+      const nameInput = form.querySelector(
+        "input[name='name'], input[name*='name']"
+      );
       const name = nameInput?.value || "";
 
-      navigator.sendBeacon(
-        IDENTIFY_URL,
-        new Blob([JSON.stringify({
+      fetch(IDENTIFY_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
           apiKey,
           visitorId,
           email,
           name
-        })], { type: "application/json" })
-      );
+        }),
+        keepalive: true
+      }).catch(() => {});
 
+      // Track form event
       track("form_submit", {
         formId: form.id || "unknown",
         emailCaptured: true
       });
+
     } catch (err) {
       console.warn("CRM form capture error", err);
     }
   });
 
+  // 🔥 MANUAL API
   window.crmTracker = {
-    track,
+    track: track,
     identify: async function(email, name) {
       if (!email) return console.error("Email required");
 
@@ -111,6 +136,7 @@ export default {
       }
     }
   };
+
 })();
 `;
 

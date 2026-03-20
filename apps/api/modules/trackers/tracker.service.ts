@@ -4,7 +4,8 @@ import { Visitor } from "./visitors.model";
 import { Lead } from "../lead/lead.model";
 
 export class TrackerService {
-  public isValidDomain(origin: string, domain: string) {
+  public isValidDomain(origin: string, domain: string | null | undefined) {
+    if (!domain) return false;
     try {
       const hostname = new URL(origin).hostname;
       return (
