@@ -2,9 +2,14 @@ import { Workspace } from "./workspace.model";
 import { Membership } from "../memberships/memberships.model";
 
 class WorkspaceService {
-    async createWorkspace(name: string, userId: string, domain: string) {
+    async createWorkspace(name: string, userId: string, domain?: string) {
         const apiKey = crypto.randomUUID();
         const workspace = await Workspace.create({ name, type: "SOLO", owner: userId, apiKey, domain });
+        return workspace;
+    }
+
+    async updateWorkspace(workspaceId: string, data: { name?: string; domain?: string }) {
+        const workspace = await Workspace.findByIdAndUpdate(workspaceId, { $set: data }, { new: true });
         return workspace;
     }
 

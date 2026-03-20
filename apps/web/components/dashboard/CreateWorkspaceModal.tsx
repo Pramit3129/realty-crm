@@ -16,6 +16,7 @@ export function CreateWorkspaceModal({
   onSuccess: (workspaceId: string) => void;
 }) {
   const [workspaceName, setWorkspaceName] = useState("");
+  const [domain, setDomain] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,7 +39,10 @@ export function CreateWorkspaceModal({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: workspaceName.trim() }),
+        body: JSON.stringify({ 
+          name: workspaceName.trim(),
+          domain: domain.trim() || undefined 
+        }),
       });
 
       if (!res.ok) {
@@ -58,7 +62,7 @@ export function CreateWorkspaceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative w-full max-w-sm rounded-xl border border-border/50 bg-card p-6 shadow-2xl">
+      <div className="relative w-full max-w-sm rounded-2xl border border-border/60 bg-card p-8 shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors"
@@ -70,22 +74,42 @@ export function CreateWorkspaceModal({
           <h2 className="text-xl font-semibold tracking-tight text-foreground">
             Create Workspace
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-xs text-muted-foreground/70 leading-relaxed">
             Provide a name for your new workspace.
           </p>
         </div>
 
         <div className="space-y-4">
-          <Input
-            placeholder="e.g. Dream Team CRM"
-            value={workspaceName}
-            onChange={(e) => setWorkspaceName(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === "Enter" && handleCreateWorkspace()
-            }
-            className="border-border/60 bg-background/50 py-5 transition-colors focus:border-primary/60"
-            autoFocus
-          />
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-1 mb-1 block">
+              Workspace Name
+            </label>
+            <Input
+              placeholder="e.g. Dream Team CRM"
+              value={workspaceName}
+              onChange={(e) => setWorkspaceName(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && handleCreateWorkspace()
+              }
+              className="border-border/60 bg-background/50 py-5 transition-colors focus:border-primary/60 h-10"
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-1 mb-1 flex justify-between">
+              Domain <span className="opacity-60 text-[9px] lowercase italic font-normal text-foreground/40">(Optional)</span>
+            </label>
+            <Input
+              placeholder="e.g. dreamteam.com"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && handleCreateWorkspace()
+              }
+              className="border-border/60 bg-background/50 py-5 transition-colors focus:border-primary/60 h-10"
+            />
+          </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">

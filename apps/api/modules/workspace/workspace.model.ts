@@ -17,7 +17,7 @@ const workspaceSchema = new mongoose.Schema({
     },
     domain:{
         type: String,
-        required: true,
+        required: false,
     },
     owner: {
         type: mongoose.Schema.Types.ObjectId,

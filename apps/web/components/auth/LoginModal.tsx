@@ -46,6 +46,7 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
     isAuthenticated ? "workspace" : "providers",
   );
   const [workspaceName, setWorkspaceName] = useState("");
+  const [domain, setDomain] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -74,7 +75,10 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name: workspaceName.trim() }),
+        body: JSON.stringify({ 
+          name: workspaceName.trim(),
+          domain: domain.trim() || undefined
+        }),
       });
 
       if (!res.ok) {
@@ -94,7 +98,7 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
       <div className={cn(
-        "relative w-full bg-background rounded-2xl shadow-2xl border border-border/50 overflow-hidden transition-all duration-300",
+        "relative w-full bg-background rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-border/60 overflow-hidden transition-all duration-300",
         view === "onboarding" ? "max-w-xl" : "max-w-[400px]"
       )}>
         <div className="p-8 sm:p-10 flex flex-col gap-6">
@@ -160,15 +164,33 @@ export default function AuthModal({ isAuthenticated }: AuthModalProps) {
             {/* ── Workspace view ──────────────────────────────────────── */}
             {view === "workspace" && (
               <div className="flex w-full flex-col gap-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="space-y-2">
-                  <Input
-                    placeholder="e.g. Diamond Realty Group"
-                    value={workspaceName}
-                    onChange={(e) => setWorkspaceName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCreateWorkspace()}
-                    className="h-12 border-border/60 bg-background/50 focus-visible:ring-1 rounded-xl"
-                    autoFocus
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-1 mb-1 block">
+                      Workspace Name
+                    </label>
+                    <Input
+                      placeholder="e.g. Diamond Realty Group"
+                      value={workspaceName}
+                      onChange={(e) => setWorkspaceName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleCreateWorkspace()}
+                      className="h-12 border-border/60 bg-background/50 focus-visible:ring-1 rounded-xl"
+                      autoFocus
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-1 mb-1 flex justify-between">
+                      Domain <span className="opacity-60 text-[9px] lowercase italic font-normal text-muted-foreground/60">(Optional)</span>
+                    </label>
+                    <Input
+                      placeholder="e.g. diamondrealty.com"
+                      value={domain}
+                      onChange={(e) => setDomain(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleCreateWorkspace()}
+                      className="h-12 border-border/60 bg-background/50 focus-visible:ring-1 rounded-xl"
+                    />
+                  </div>
                   {error && <p className="text-xs font-medium text-destructive ml-1">{error}</p>}
                 </div>
 

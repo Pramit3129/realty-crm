@@ -179,7 +179,7 @@ function DashboardContent() {
           userRole={activeWorkspace?.role || "AGENT"}
         />
       ) : activeView === "settings" ? (
-        <SettingsView workspace={activeWorkspace} onClose={() => setActiveView("leads")} />
+        <SettingsView workspace={activeWorkspace} onClose={() => setActiveView("leads")} onUpdate={refreshWorkspaces} />
       ) : null}
       </div>
     </div>

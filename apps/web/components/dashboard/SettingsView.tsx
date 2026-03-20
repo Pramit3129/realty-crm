@@ -18,37 +18,24 @@ import {
   Calendar,
   Lock,
   CheckCircle2,
+  Search,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { getToken, API_BASE_URL, clearToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { CANADA_CITIES } from "@/lib/constants";
 
 interface SettingsViewProps {
   workspace: any;
   onClose: () => void;
+  onUpdate?: () => void;
 }
 
-const CANADA_CITIES = [
-  "Toronto",
-  "Vancouver",
-  "Montreal",
-  "Calgary",
-  "Edmonton",
-  "Ottawa",
-  "Winnipeg",
-  "Quebec City",
-  "Hamilton",
-  "Kitchener",
-  "London",
-  "Victoria",
-  "Halifax",
-  "Oshawa",
-  "Windsor",
-];
 
-export default function SettingsView({ onClose }: SettingsViewProps) {
+export default function SettingsView({ workspace, onClose, onUpdate }: SettingsViewProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUploadField, setCurrentUploadField] = useState<string | null>(
@@ -60,6 +47,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
   const [deleting, setDeleting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [initialUserData, setInitialUserData] = useState<any>(null);
+  const [marketSearchText, setMarketSearchText] = useState("");
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -78,6 +66,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
     brokerageLogoUrl: "",
     brokerageName: "",
     subscriptionPlan: "free",
+    domain: workspace?.domain || "",
   });
 
   useEffect(() => {
@@ -107,6 +96,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
           brokerageLogoUrl: user.brokerageLogoUrl || "",
           brokerageName: user.brokerageName || "",
           subscriptionPlan: user.subscriptionPlan || "free",
+          domain: workspace?.domain || "",
         });
       } catch (err) {
         console.error("Fetch profile error:", err);
@@ -168,7 +158,8 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
   const handleUpdate = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/user/me`, {
+      // Update User Profile
+      const userRes = await fetch(`${API_BASE_URL}/user/me`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -180,7 +171,25 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
         }),
       });
 
-      if (!res.ok) throw new Error("Update failed");
+      if (!userRes.ok) throw new Error("User update failed");
+
+      // Update Workspace Details (Domain)
+      if (workspace?._id && formData.domain !== workspace.domain) {
+        const workspaceRes = await fetch(`${API_BASE_URL}/workspace/${workspace._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`,
+          },
+          body: JSON.stringify({
+            domain: formData.domain.trim() || undefined,
+          }),
+        });
+
+        if (!workspaceRes.ok) throw new Error("Workspace update failed");
+        if (onUpdate) onUpdate();
+      }
+
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
@@ -217,16 +226,16 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
 
   if (loading) {
     return (
-      <div className="flex-1 h-full flex items-center justify-center bg-[#0A0A0A]">
+      <div className="flex-1 h-full flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 h-full flex flex-col bg-[#0A0A0A] overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
+    <div className="flex-1 h-full flex flex-col bg-background overflow-y-auto custom-scrollbar animate-in fade-in duration-500">
       {/* Top Header */}
-      <div className="max-w-3xl w-full mx-auto px-6 py-8 flex items-center justify-between border-b border-border/20 sticky top-0 bg-[#0A0A0A]/80 backdrop-blur-md z-10">
+      <div className="max-w-3xl w-full mx-auto px-6 py-8 flex items-center justify-between border-b border-border/20 sticky top-0 bg-background/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground/60">
           User <span className="text-muted-foreground/30">/</span>{" "}
           <span className="text-foreground">Profile</span>
@@ -275,8 +284,8 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
 
         <div className="space-y-12">
           {/* Identity Section */}
-          <section className="space-y-6">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/30 border-b border-border/10 pb-2">
+          <section className="space-y-6 bg-card/30 border border-border/40 p-6 rounded-2xl shadow-sm backdrop-blur-[2px]">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70 border-b border-border/10 pb-3 mb-2">
               Direct Identity
             </h2>
 
@@ -338,7 +347,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   First Name
                 </label>
                 <div className="relative">
@@ -353,7 +362,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Last Name
                 </label>
                 <div className="relative">
@@ -368,7 +377,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Phone Number
                 </label>
                 <div className="relative">
@@ -383,7 +392,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Account Email (Private)
                 </label>
                 <div className="relative">
@@ -400,13 +409,13 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
           </section>
 
           {/* Business Section */}
-          <section className="space-y-6">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/30 border-b border-border/10 pb-2">
+          <section className="space-y-6 bg-card/30 border border-border/40 p-6 rounded-2xl shadow-sm backdrop-blur-[2px]">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70 border-b border-border/10 pb-3 mb-2">
               Business Metadata
             </h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Entity Name
                 </label>
                 <div className="relative">
@@ -421,7 +430,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   License ID
                 </label>
                 <div className="relative">
@@ -436,7 +445,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5 col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Public Professional Email
                 </label>
                 <div className="relative">
@@ -451,7 +460,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5 col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Headquarters Address
                 </label>
                 <div className="relative">
@@ -468,7 +477,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Industry Tenure (Years)
                 </label>
                 <div className="relative">
@@ -484,7 +493,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/30 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Calendly Scheduling
                 </label>
                 <div className="relative">
@@ -501,17 +510,32 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
                   />
                 </div>
               </div>
+              <div className="space-y-1.5 col-span-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
+                  Official Workspace Domain
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/20" />
+                  <Input
+                    name="domain"
+                    value={formData.domain}
+                    onChange={handleInputChange}
+                    placeholder={workspace?.domain || "e.g. example.com"}
+                    className="h-10 pl-10 bg-accent/5 border-border/10 focus-visible:ring-1 focus-visible:ring-foreground/20 text-sm font-medium"
+                  />
+                </div>
+              </div>
             </div>
           </section>
 
           {/* Brokerage Section */}
-          <section className="space-y-6">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 border-b border-border/10 pb-2">
+          <section className="space-y-6 bg-card/30 border border-border/40 p-6 rounded-2xl shadow-sm backdrop-blur-[2px]">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70 border-b border-border/10 pb-3 mb-2">
               Brokerage Info
             </h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5 col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 ml-0.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-0.5">
                   Brokerage Name
                 </label>
                 <Input
@@ -526,7 +550,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 ml-1 block">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-1 block">
                   Brokerage Logo
                 </label>
                 <div
@@ -550,7 +574,7 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 ml-1 block">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 ml-1 block">
                   Signature Image
                 </label>
                 <div
@@ -576,31 +600,75 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
           </section>
 
           {/* Markets Section */}
-          <section className="space-y-6">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/30 border-b border-border/10 pb-2">
-              Active Target Markets
-            </h2>
-            <div className="flex flex-wrap gap-1.5 pt-2">
-              {CANADA_CITIES.map((city) => (
-                <button
-                  key={city}
-                  onClick={() => handleMarketToggle(city)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border",
-                    formData.markets.includes(city)
-                      ? "bg-foreground text-background border-foreground shadow-lg shadow-foreground/10"
-                      : "bg-accent/5 text-muted-foreground/60 border-border/10 hover:border-border/30 hover:text-foreground",
-                  )}
-                >
-                  {city}
-                </button>
-              ))}
+          <section className="space-y-6 bg-card/30 border border-border/40 p-6 rounded-2xl shadow-sm backdrop-blur-[2px]">
+            <div className="flex items-center justify-between border-b border-border/10 pb-3 mb-2">
+              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70">
+                Active Target Markets
+              </h2>
+              {formData.markets.length > 0 && (
+                <span className="text-[10px] font-bold text-foreground/60 uppercase tracking-wider">
+                  {formData.markets.length} Selected
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground/20" />
+                <Input 
+                  placeholder="Search cities..." 
+                  value={marketSearchText}
+                  onChange={(e) => setMarketSearchText(e.target.value)}
+                  className="h-10 pl-10 bg-accent/5 border-border/10 focus-visible:ring-1 focus-visible:ring-foreground/20 text-sm font-medium"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar pb-2">
+                {CANADA_CITIES.filter(city => city.toLowerCase().includes(marketSearchText.toLowerCase())).map((city) => (
+                  <button
+                    key={city}
+                    type="button"
+                    onClick={() => handleMarketToggle(city)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border",
+                      formData.markets.includes(city)
+                        ? "bg-foreground text-background border-foreground shadow-lg shadow-foreground/10"
+                        : "bg-accent/5 text-muted-foreground/60 border-border/10 hover:border-border/30 hover:text-foreground",
+                    )}
+                  >
+                    {city}
+                  </button>
+                ))}
+              </div>
+
+              {formData.markets.length > 0 && (
+                <div className="pt-4 border-t border-border/5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/40 mb-3 ml-1">Current Selections</p>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.markets.map(city => (
+                      <div 
+                        key={city}
+                        className="px-2.5 py-1.5 rounded-xl bg-foreground/5 border border-foreground/10 text-[10px] font-bold flex items-center gap-1.5 animate-in zoom-in-95 duration-200"
+                      >
+                        {city}
+                        <button 
+                          type="button"
+                          onClick={() => handleMarketToggle(city)}
+                          className="p-0.5 hover:bg-foreground/10 rounded-full transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
           {/* Account Tier */}
-          <section className="space-y-6">
-            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/30 border-b border-border/10 pb-2">
+          <section className="space-y-6 bg-card/30 border border-border/40 p-6 rounded-2xl shadow-sm backdrop-blur-[2px]">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70 border-b border-border/10 pb-3 mb-2">
               Plan Details
             </h2>
             <div className="p-5 rounded-2xl bg-gradient-to-br from-accent/10 to-transparent border border-border/10 flex items-center justify-between group">
@@ -630,10 +698,10 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
           {/* Danger Zone */}
           <section className="pt-12 border-t border-border/20 space-y-4 pb-24">
             <div>
-              <h3 className="text-sm font-black text-foreground/90 uppercase tracking-widest">
+              <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
                 Termination Zone
               </h3>
-              <p className="text-[11px] text-muted-foreground/40 italic">
+              <p className="text-[11px] text-muted-foreground/60 italic">
                 Permanently delete account and all associated realtor metadata
               </p>
             </div>
@@ -667,8 +735,8 @@ export default function SettingsView({ onClose }: SettingsViewProps) {
           __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 20px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.1); border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.2); }
       `,
         }}
       />
