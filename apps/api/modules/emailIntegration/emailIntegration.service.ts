@@ -40,6 +40,11 @@ class EmailIntegrationService {
     public async handleCallback(code: string, userId: string): Promise<void> {
         const oauth2Client = this.getOAuthClient();
         const { tokens } = await oauth2Client.getToken(code);
+        await this.createOrUpdateIntegration(userId, tokens);
+    }
+
+    public async createOrUpdateIntegration(userId: string, tokens: any): Promise<void> {
+        const oauth2Client = this.getOAuthClient();
 
         oauth2Client.setCredentials(tokens);
 
