@@ -406,8 +406,7 @@ export class TrackerService {
     };
 
     // Process top interactions
-    const maxCount = clickHotspotsRaw.length > 0 ? clickHotspotsRaw[0].count : 1;
-    const clickHotspots = clickHotspotsRaw.map((item: any) => {
+    const mappedHotspots = clickHotspotsRaw.map((item: any) => {
       const eventType: string = item._id.event || "unknown";
       const rawKey: string = item._id.key || "";
       let label = rawKey;
@@ -447,9 +446,31 @@ export class TrackerService {
         tagName: eventType === "click" ? (item.sampleData?.tagName || "ELEMENT") : eventType.toUpperCase(),
         href,
         count: item.count,
-        percent: Math.round((item.count / maxCount) * 100),
       };
     });
+
+    // Merge duplicates (e.g. separate URL variants that both resolve to "Home Page")
+    const mergedHotspotsMap = new Map<string, any>();
+    for (const item of mappedHotspots) {
+      const key = `${item.eventType}_${item.label}`;
+      if (mergedHotspotsMap.has(key)) {
+        mergedHotspotsMap.get(key).count += item.count;
+      } else {
+        mergedHotspotsMap.set(key, { ...item });
+      }
+    }
+
+    // Sort by merged counts and take top 15
+    const mergedHotspots = Array.from(mergedHotspotsMap.values())
+      .sort((a: any, b: any) => b.count - a.count)
+      .slice(0, 15);
+
+    // Apply relative percentages based on new actual max count
+    const maxCount = mergedHotspots.length > 0 ? mergedHotspots[0].count : 1;
+    const clickHotspots = mergedHotspots.map((item: any) => ({
+      ...item,
+      percent: Math.round((item.count / maxCount) * 100),
+    }));
 
     // Process device breakdown
     const deviceCounts: { Desktop: number; Mobile: number; Tablet: number } = { Desktop: 0, Mobile: 0, Tablet: 0 };

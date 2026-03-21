@@ -68,7 +68,10 @@ export default {
       for (var i = 0; i < 5 && el && el !== document.body; i++) {
         var tag = (el.tagName || "").toUpperCase();
         if (tag === "A" || tag === "BUTTON" || tag === "INPUT" || el.getAttribute("role") === "button") {
-          var text = (el.innerText || el.value || "").trim().slice(0, 80);
+          var text = (el.innerText || el.value || el.getAttribute("aria-label") || el.getAttribute("title") || "").trim().slice(0, 80);
+          // Skip if no meaningful text — avoids duplicate "Unknown click" for icon-only buttons
+          // that are already tracked manually by the website
+          if (!text) return;
           var href = el.getAttribute("href") || "";
           track("click", {
             url: window.location.href,
