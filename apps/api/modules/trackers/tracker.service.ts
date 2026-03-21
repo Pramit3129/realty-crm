@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Workspace } from "../workspace/workspace.model";
 import { User } from "../user/user.model";
 import { Event } from "./events.model";
@@ -23,7 +24,8 @@ export class TrackerService {
     apiKey: string,
     visitorId: string,
     events: any[],
-    origin: string
+    origin: string,
+    userAgent?: string
   ) {
     // 1. Validate apiKey and get realtor/workspace
     const keyDoc = await ApiKey.findOne({ key: apiKey }).select("workspace user domain");
@@ -54,13 +56,16 @@ export class TrackerService {
         return null;
       }
 
+      const data = typeof e.data === "object" ? { ...e.data } : {};
+      if (userAgent) data.userAgent = userAgent;
+
       return {
         workspaceId: keyDoc.workspace,
         realtorId: keyDoc.user,
         visitorId: visitorId,
         leadId: (visitor as any).leadId || null,
         event: e.event,
-        data: typeof e.data === "object" ? e.data : {},
+        data,
         timestamp: e.timestamp || Date.now(),
       };
     }).filter(Boolean);
@@ -279,6 +284,181 @@ export class TrackerService {
       trackerScript,
       scriptUrl,
       domain: keyDoc.domain
+    };
+  }
+  private parseDevice(ua: string): "Desktop" | "Mobile" | "Tablet" {
+    if (!ua) return "Desktop";
+    const lower = ua.toLowerCase();
+    if (/ipad|tablet|playbook|silk|(android(?!.*mobile))/i.test(lower)) return "Tablet";
+    if (/mobile|iphone|ipod|android.*mobile|blackberry|opera mini|iemobile/i.test(lower)) return "Mobile";
+    return "Desktop";
+  }
+
+  public async getDashboardStats(workspaceId: string) {
+    const now = new Date();
+    const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000);
+
+    // Run all queries in parallel
+    const [
+      totalSessions,
+      uniqueAnonymousVisitors,
+      avgPagesResult,
+      heatScoreResult,
+      liveEventsRaw,
+      deviceEventsRaw
+    ] = await Promise.all([
+      // 1. Total sessions (total events = total engagement)
+      Event.countDocuments({ workspaceId }),
+
+      // 2. Unique visitors with no leadId (anonymous)
+      Visitor.countDocuments({ workspaceId, leadId: null }),
+
+      // 3. Avg pages per session (page_view count per unique visitorId)
+      Event.aggregate([
+        { $match: { workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId), event: "page_view" } },
+        { $group: { _id: "$visitorId", pageCount: { $sum: 1 } } },
+        { $group: { _id: null, avgPages: { $avg: "$pageCount" }, totalVisitors: { $sum: 1 } } }
+      ]),
+
+      // 4. Engagement heat score — bucket visitors by total event count
+      Event.aggregate([
+        { $match: { workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId) } },
+        { $group: { _id: "$visitorId", count: { $sum: 1 } } },
+        {
+          $bucket: {
+            groupBy: "$count",
+            boundaries: [1, 2, 5, 11],
+            default: "hot",
+            output: { count: { $sum: 1 } }
+          }
+        }
+      ]),
+
+      // 5. Live visitors — page_view events in last 15 min
+      Event.aggregate([
+        {
+          $match: {
+            workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId),
+            event: "page_view",
+            timestamp: { $gte: fifteenMinAgo }
+          }
+        },
+        { $sort: { timestamp: -1 } },
+        {
+          $group: {
+            _id: "$visitorId",
+            pages: { $push: "$data.url" },
+            lastSeen: { $first: "$timestamp" },
+            userAgent: { $first: "$data.userAgent" },
+            leadId: { $first: "$leadId" }
+          }
+        },
+        { $sort: { lastSeen: -1 } },
+        { $limit: 20 }
+      ]),
+
+      // 6. Device breakdown — from all events with userAgent
+      Event.aggregate([
+        {
+          $match: {
+            workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId),
+            "data.userAgent": { $exists: true, $ne: null }
+          }
+        },
+        { $group: { _id: "$visitorId", userAgent: { $first: "$data.userAgent" } } }
+      ])
+    ]);
+
+    // Process avg pages
+    const avgPagesPerSession = avgPagesResult.length > 0
+      ? Math.round(avgPagesResult[0].avgPages * 10) / 10
+      : 0;
+
+    // Process heat score buckets
+    const heatMap: { new: number; cool: number; warm: number; hot: number } = { new: 0, cool: 0, warm: 0, hot: 0 };
+    for (const bucket of heatScoreResult) {
+      if (bucket._id === 1) heatMap.new = bucket.count;
+      else if (bucket._id === 2) heatMap.cool = bucket.count;
+      else if (bucket._id === 5) heatMap.warm = bucket.count;
+      else heatMap.hot = bucket.count; // "hot" default bucket (11+)
+    }
+    const heatTotal = Object.values(heatMap).reduce((a, b) => a + b, 0) || 1;
+    const engagementHeatScore = {
+      hot: Math.round((heatMap.hot / heatTotal) * 100),
+      warm: Math.round((heatMap.warm / heatTotal) * 100),
+      cool: Math.round((heatMap.cool / heatTotal) * 100),
+      new: Math.round((heatMap.new / heatTotal) * 100),
+    };
+
+    // Process live visitors — compute heat label per visitor from all-time event count
+    const liveVisitorIds = liveEventsRaw.map((v: any) => v._id);
+    let visitorHeatMap: Record<string, string> = {};
+    if (liveVisitorIds.length > 0) {
+      const visitorCounts = await Event.aggregate([
+        { $match: { workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId), visitorId: { $in: liveVisitorIds } } },
+        { $group: { _id: "$visitorId", count: { $sum: 1 } } }
+      ]);
+      for (const vc of visitorCounts) {
+        if (vc.count >= 11) visitorHeatMap[vc._id] = "Hot";
+        else if (vc.count >= 5) visitorHeatMap[vc._id] = "Warm";
+        else if (vc.count >= 2) visitorHeatMap[vc._id] = "Cool";
+        else visitorHeatMap[vc._id] = "New";
+      }
+    }
+
+    // Fetch lead info for live visitors
+    const leadIds = liveEventsRaw.filter((v: any) => v.leadId).map((v: any) => v.leadId);
+    let leadMap: Record<string, any> = {};
+    if (leadIds.length > 0) {
+      const leads = await Lead.find({ _id: { $in: leadIds } }).select("name email").lean();
+      for (const l of leads) {
+        leadMap[(l._id as any).toString()] = l;
+      }
+    }
+
+    const liveVisitors = liveEventsRaw.map((v: any, i: number) => {
+      const device = this.parseDevice(v.userAgent || "");
+      const pages = (v.pages || []).filter(Boolean).map((url: string) => {
+        try {
+          return new URL(url).pathname;
+        } catch { return url; }
+      });
+      const uniquePages = [...new Set(pages)].slice(0, 5);
+      const lead = v.leadId ? leadMap[v.leadId.toString()] : null;
+      const minutesAgo = Math.round((now.getTime() - new Date(v.lastSeen).getTime()) / 60000);
+
+      return {
+        id: v._id,
+        label: lead ? lead.name || lead.email : `Visitor #${String.fromCharCode(65 + (i % 26))}-${v._id.slice(-4)}`,
+        device,
+        pages: uniquePages,
+        heat: visitorHeatMap[v._id] || "New",
+        minutesAgo,
+        isLive: minutesAgo < 1,
+      };
+    });
+
+    // Process device breakdown
+    const deviceCounts: { Desktop: number; Mobile: number; Tablet: number } = { Desktop: 0, Mobile: 0, Tablet: 0 };
+    for (const ev of deviceEventsRaw) {
+      const device = this.parseDevice(ev.userAgent || "");
+      deviceCounts[device]++;
+    }
+    const deviceTotal = Object.values(deviceCounts).reduce((a, b) => a + b, 0) || 1;
+    const deviceBreakdown = {
+      desktop: Math.round((deviceCounts.Desktop / deviceTotal) * 100),
+      mobile: Math.round((deviceCounts.Mobile / deviceTotal) * 100),
+      tablet: Math.round((deviceCounts.Tablet / deviceTotal) * 100),
+    };
+
+    return {
+      totalSessions,
+      uniqueVisitors: uniqueAnonymousVisitors,
+      avgPagesPerSession,
+      engagementHeatScore,
+      liveVisitors,
+      liveVisitorCount: liveVisitors.length,
+      deviceBreakdown,
     };
   }
 }

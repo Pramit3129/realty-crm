@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare, Megaphone, Settings, Inbox, Menu, X as CloseIcon, Radar } from "lucide-react";
+import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare, Megaphone, Settings, Inbox, Menu, X as CloseIcon, Radar, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -26,7 +26,8 @@ export type ActiveViewType =
   | "tasks-status" 
   | "tasks-me"
   | "settings"
-  | "tracker";
+  | "tracker"
+  | "analytics";
 
 // ── Props ─────────────────────────────────────────────────────────────
 interface SidebarProps {
@@ -50,6 +51,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "leads", label: "Leads", icon: Users },
+  { key: "analytics", label: "Analytics", icon: BarChart3 },
   { key: "inbox", label: "Inbox", icon: Inbox },
   { key: "campaigns", label: "Campaigns", icon: Megaphone },
   { key: "pipeline", label: "Pipeline", icon: Kanban },

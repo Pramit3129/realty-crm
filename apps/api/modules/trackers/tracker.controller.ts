@@ -19,8 +19,9 @@ export const trackBatch = async (req: Request, res: Response) => {
     }
 
     const origin = req.headers.origin || req.headers.referer || "";
+    const userAgent = req.headers["user-agent"] || "";
 
-    await trackerService.processBatchEvents(apiKey, visitorId, events, origin);
+    await trackerService.processBatchEvents(apiKey, visitorId, events, origin, userAgent as string);
     
     return res.sendStatus(200);
   } catch (err: any) {
@@ -145,3 +146,14 @@ export const getTrackerDetails = async (req: Request, res: Response) => {
   }
 };
 
+export const getDashboardStats = async (req: Request, res: Response) => {
+  try {
+    const workspaceId = req.params.workspaceId as string;
+
+    const stats = await trackerService.getDashboardStats(workspaceId);
+    return res.json({ success: true, ...stats });
+  } catch (err: any) {
+    console.error("Get dashboard stats error:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

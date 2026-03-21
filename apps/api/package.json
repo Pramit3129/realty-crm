@@ -11,6 +11,7 @@
     "@types/cors": "^2.8.19",
     "@types/multer": "^2.1.0",
     "@types/supertest": "^7.2.0",
+    "@types/ua-parser-js": "^0.7.39",
     "supertest": "^7.2.2"
   },
   "peerDependencies": {
@@ -45,6 +46,7 @@
     "openai": "^6.25.0",
     "p-limit": "^6.2.0",
     "resend": "^6.9.3",
+    "ua-parser-js": "^2.0.9",
     "zod": "^4.3.6"
   }
 }

@@ -1,6 +1,6 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { trackBatch, identifyVisitor, getWorkspaceEvents, getWorkspaceVisitors, generateApiKey, getTrackerDetails } from "./tracker.controller";
+import { trackBatch, identifyVisitor, getWorkspaceEvents, getWorkspaceVisitors, generateApiKey, getTrackerDetails, getDashboardStats } from "./tracker.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
 
 const router = express.Router();
@@ -18,6 +18,7 @@ router.post("/identify", identifyVisitor);
 
 router.get("/workspace/:workspaceId/events", requireAuth, getWorkspaceEvents);
 router.get("/workspace/:workspaceId/visitors", requireAuth, getWorkspaceVisitors);
+router.get("/workspace/:workspaceId/dashboard-stats", requireAuth, getDashboardStats);
 
 router.post("/generate-api-key", requireAuth, generateApiKey);
 router.get("/workspace/:workspaceId/tracker-details", requireAuth, getTrackerDetails);

@@ -12,6 +12,7 @@ import CampaignsView from "@/components/dashboard/CampaignsView";
 import SettingsView from "@/components/dashboard/SettingsView";
 import InboxView from "@/components/dashboard/InboxView";
 import TrackerView from "@/components/dashboard/TrackerView";
+import AnalyticsView from "@/components/dashboard/AnalyticsView";
 import type { ActiveViewType } from "@/components/dashboard/Sidebar";
 import {
   getToken,
@@ -183,6 +184,8 @@ function DashboardContent() {
         <SettingsView workspace={activeWorkspace} onClose={() => setActiveView("leads")} onUpdate={refreshWorkspaces} />
       ) : activeView === "tracker" ? (
         <TrackerView workspaceId={activeWorkspaceId} userRole={activeWorkspace?.role || "AGENT"} />
+      ) : activeView === "analytics" ? (
+        <AnalyticsView workspaceId={activeWorkspaceId} />
       ) : null}
       </div>
     </div>

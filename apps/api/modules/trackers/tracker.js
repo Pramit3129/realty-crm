@@ -31,7 +31,7 @@ export default {
   function track(event, data = {}) {
     queue.push({
       event,
-      data,
+      data: Object.assign({ userAgent: navigator.userAgent }, data),
       timestamp: Date.now()
     });
   }
