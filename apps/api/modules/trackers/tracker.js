@@ -60,6 +60,31 @@ export default {
   // 🔥 PAGE VIEW
   track("page_view", { url: window.location.href });
 
+  // 🔥 AUTO CLICK CAPTURE
+  document.addEventListener("click", function (e) {
+    try {
+      var el = e.target;
+      // Walk up to find a meaningful element (max 5 levels)
+      for (var i = 0; i < 5 && el && el !== document.body; i++) {
+        var tag = (el.tagName || "").toUpperCase();
+        if (tag === "A" || tag === "BUTTON" || tag === "INPUT" || el.getAttribute("role") === "button") {
+          var text = (el.innerText || el.value || "").trim().slice(0, 80);
+          var href = el.getAttribute("href") || "";
+          track("click", {
+            url: window.location.href,
+            tagName: tag,
+            text: text,
+            href: href,
+            id: el.id || "",
+            className: (el.className || "").toString().slice(0, 100)
+          });
+          return;
+        }
+        el = el.parentElement;
+      }
+    } catch (err) {}
+  });
+
   setInterval(sendBatch, 5000);
   window.addEventListener("beforeunload", sendBatch);
 

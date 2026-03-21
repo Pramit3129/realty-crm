@@ -435,8 +435,45 @@ export class TrackerService {
         heat: visitorHeatMap[v._id] || "New",
         minutesAgo,
         isLive: minutesAgo < 1,
+        clicks: [] as any[],
       };
     });
+
+    // Fetch recent click events for live visitors
+    if (liveVisitorIds.length > 0) {
+      const clickEvents = await Event.find({
+        workspaceId,
+        visitorId: { $in: liveVisitorIds },
+        event: "click",
+        timestamp: { $gte: fifteenMinAgo },
+      })
+        .sort({ timestamp: -1 })
+        .limit(100)
+        .select("visitorId data timestamp")
+        .lean();
+
+      // Group clicks by visitorId
+      const clicksByVisitor: Record<string, any[]> = {};
+      for (const ev of clickEvents) {
+        const vid = (ev as any).visitorId;
+        if (!clicksByVisitor[vid]) clicksByVisitor[vid] = [];
+        if (clicksByVisitor[vid].length >= 10) continue; // max 10 clicks per visitor
+        const d = (ev as any).data || {};
+        clicksByVisitor[vid].push({
+          text: d.text || "",
+          tagName: d.tagName || "",
+          href: d.href || "",
+          id: d.id || "",
+          url: d.url || "",
+          timestamp: (ev as any).timestamp,
+        });
+      }
+
+      // Attach clicks to each live visitor
+      for (const visitor of liveVisitors) {
+        visitor.clicks = clicksByVisitor[visitor.id] || [];
+      }
+    }
 
     // Process device breakdown
     const deviceCounts: { Desktop: number; Mobile: number; Tablet: number } = { Desktop: 0, Mobile: 0, Tablet: 0 };
