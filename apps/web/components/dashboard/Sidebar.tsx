@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare, Megaphone, Settings, Inbox, Menu, X as CloseIcon } from "lucide-react";
+import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare, Megaphone, Settings, Inbox, Menu, X as CloseIcon, Radar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -25,7 +25,8 @@ export type ActiveViewType =
   | "tasks-all" 
   | "tasks-status" 
   | "tasks-me"
-  | "settings";
+  | "settings"
+  | "tracker";
 
 // ── Props ─────────────────────────────────────────────────────────────
 interface SidebarProps {
@@ -149,6 +150,10 @@ export default function Sidebar({
           <DropdownMenuItem onClick={() => onViewChange("members")} className="cursor-pointer">
             <UserPlus className="mr-2 h-4 w-4" />
             <span>Invite Member</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onViewChange("tracker")} className="cursor-pointer">
+            <Radar className="mr-2 h-4 w-4" />
+            <span>Tracker</span>
           </DropdownMenuItem>
 
 

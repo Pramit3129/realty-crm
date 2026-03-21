@@ -6,6 +6,7 @@ import { createWorkspaceSchema } from "./workspace.types";
 import { pipelineStageService } from "../pipelineStage/pipelineStage.service";
 import { PipelineService } from "../pipeline/pipeline.service";
 import { Workspace } from "./workspace.model";
+import { trackerService } from "../trackers/tracker.service";
 
 const pipelineService = new PipelineService();
 
@@ -15,13 +16,13 @@ export const createWorkspace = async (req: Request, res: Response) => {
         const authUser = req as AuthenticatedRequest;
         const workspace = await workspaceService.createWorkspace(name, authUser.user.id, domain);
         await membershipService.createMembership(
-            String(workspace._id),
+            String((workspace as any)._id),
             authUser.user.id,
             "OWNER"
         );
 
         // --- BUILT-IN DEFAULT PIPELINES ---
-        const buyerPipeline = await pipelineService.createPipeline("Buyer", "BUYER", String(workspace._id), authUser.user.id);
+        const buyerPipeline = await pipelineService.createPipeline("Buyer", "BUYER", String((workspace as any)._id), authUser.user.id);
         const buyerStages = [
             { name: "New Inquiry", probability: 10, isFinal: false, colorIndex: 0 },
             { name: "Contacted", probability: 20, isFinal: false, colorIndex: 1 },
@@ -40,8 +41,8 @@ export const createWorkspace = async (req: Request, res: Response) => {
             if (!stage) continue;
             await pipelineStageService.createStage({
                 name: stage.name,
-                pipelineId: String(buyerPipeline?._id),
-                workspaceId: String(workspace._id),
+                pipelineId: String((buyerPipeline as any)?._id),
+                workspaceId: String((workspace as any)._id),
                 stageNumber: i + 1,
                 probability: stage.probability,
                 isFinal: stage.isFinal,
@@ -49,7 +50,7 @@ export const createWorkspace = async (req: Request, res: Response) => {
             });
         }
 
-        const sellerPipeline = await pipelineService.createPipeline("Seller", "SELLER", String(workspace._id), authUser.user.id);
+        const sellerPipeline = await pipelineService.createPipeline("Seller", "SELLER", String((workspace as any)._id), authUser.user.id);
         const sellerStages = [
             { name: "New Inquiry", probability: 10, isFinal: false, colorIndex: 0 },
             { name: "Consultation Scheduled", probability: 30, isFinal: false, colorIndex: 1 },
@@ -66,21 +67,17 @@ export const createWorkspace = async (req: Request, res: Response) => {
             if (!stage) continue;
             await pipelineStageService.createStage({
                 name: stage.name,
-                pipelineId: String(sellerPipeline?._id),
-                workspaceId: String(workspace._id),
+                pipelineId: String((sellerPipeline as any)?._id),
+                workspaceId: String((workspace as any)._id),
                 stageNumber: i + 1,
                 probability: stage.probability,
                 isFinal: stage.isFinal,
                 colorIndex: stage.colorIndex,
             });
         }
-        const trackerScript = `
-            <script 
-            src=${process.env.STATIC_SCRIPT_URL || "http://localhost:3000/tracker.js"}
-            data-key="${workspace.apiKey}"
-            defer>
-            </script>
-        `.trim();
+        const trackerDetails = await trackerService.getTrackerDetails(String((workspace as any)._id), authUser.user.id);
+        const trackerScript = trackerDetails.trackerScript;
+
         res.status(201).json({ workspace, trackerScript });
     } catch (error) {
         res.status(500).json({ message: "Failed to create workspace" });
@@ -109,7 +106,7 @@ export const updateWorkspace = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Workspace not found or unauthorized" });
         }
 
-        const updatedWorkspace = await workspaceService.updateWorkspace(id, { name, domain });
+        const updatedWorkspace = await workspaceService.updateWorkspace(id, { name, domain }, authUser.user.id);
         res.status(200).json(updatedWorkspace);
     } catch (error) {
         res.status(500).json({ message: "Failed to update workspace" });

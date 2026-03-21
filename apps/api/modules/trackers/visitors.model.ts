@@ -10,6 +10,11 @@ const visitorSchema = new mongoose.Schema({
     ref: "Workspace",
     required: true,
   },
+  realtorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
   leadId: {
     type: mongoose.Types.ObjectId,
     ref: "Lead",
@@ -26,6 +31,7 @@ const visitorSchema = new mongoose.Schema({
 });
 
 visitorSchema.index({ visitorId: 1, workspaceId: 1 }, { unique: true });
+visitorSchema.index({ realtorId: 1 });
 visitorSchema.index({ leadId: 1 });
 
 export const Visitor = mongoose.model("Visitor", visitorSchema);
