@@ -295,16 +295,13 @@ export class TrackerService {
   }
 
   public async getDashboardStats(workspaceId: string) {
-    const now = new Date();
-    const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000);
-
     // Run all queries in parallel
     const [
       totalSessions,
       uniqueAnonymousVisitors,
       avgPagesResult,
       heatScoreResult,
-      liveEventsRaw,
+      clickHotspotsRaw,
       deviceEventsRaw
     ] = await Promise.all([
       // 1. Total sessions (total events = total engagement)
@@ -334,27 +331,28 @@ export class TrackerService {
         }
       ]),
 
-      // 5. Live visitors — page_view events in last 15 min
+      // 5. Click hotspots — group click events by element text, count occurrences
       Event.aggregate([
         {
           $match: {
             workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId),
-            event: "page_view",
-            timestamp: { $gte: fifteenMinAgo }
+            event: "click",
+            "data.text": { $exists: true, $ne: "" }
           }
         },
-        { $sort: { timestamp: -1 } },
         {
           $group: {
-            _id: "$visitorId",
-            pages: { $push: "$data.url" },
-            lastSeen: { $first: "$timestamp" },
-            userAgent: { $first: "$data.userAgent" },
-            leadId: { $first: "$leadId" }
+            _id: {
+              text: "$data.text",
+              tagName: "$data.tagName",
+              href: "$data.href"
+            },
+            count: { $sum: 1 },
+            lastClicked: { $max: "$timestamp" }
           }
         },
-        { $sort: { lastSeen: -1 } },
-        { $limit: 20 }
+        { $sort: { count: -1 } },
+        { $limit: 10 }
       ]),
 
       // 6. Device breakdown — from all events with userAgent
@@ -390,90 +388,30 @@ export class TrackerService {
       new: Math.round((heatMap.new / heatTotal) * 100),
     };
 
-    // Process live visitors — compute heat label per visitor from all-time event count
-    const liveVisitorIds = liveEventsRaw.map((v: any) => v._id);
-    let visitorHeatMap: Record<string, string> = {};
-    if (liveVisitorIds.length > 0) {
-      const visitorCounts = await Event.aggregate([
-        { $match: { workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId), visitorId: { $in: liveVisitorIds } } },
-        { $group: { _id: "$visitorId", count: { $sum: 1 } } }
-      ]);
-      for (const vc of visitorCounts) {
-        if (vc.count >= 11) visitorHeatMap[vc._id] = "Hot";
-        else if (vc.count >= 5) visitorHeatMap[vc._id] = "Warm";
-        else if (vc.count >= 2) visitorHeatMap[vc._id] = "Cool";
-        else visitorHeatMap[vc._id] = "New";
-      }
-    }
+    // Process click hotspots
+    const maxClicks = clickHotspotsRaw.length > 0 ? clickHotspotsRaw[0].count : 1;
+    const clickHotspots = clickHotspotsRaw.map((item: any) => {
+      const info = item._id;
+      let label = info.text || "Unknown";
+      if (label.length > 50) label = label.slice(0, 47) + "...";
 
-    // Fetch lead info for live visitors
-    const leadIds = liveEventsRaw.filter((v: any) => v.leadId).map((v: any) => v.leadId);
-    let leadMap: Record<string, any> = {};
-    if (leadIds.length > 0) {
-      const leads = await Lead.find({ _id: { $in: leadIds } }).select("name email").lean();
-      for (const l of leads) {
-        leadMap[(l._id as any).toString()] = l;
-      }
-    }
-
-    const liveVisitors = liveEventsRaw.map((v: any, i: number) => {
-      const device = this.parseDevice(v.userAgent || "");
-      const pages = (v.pages || []).filter(Boolean).map((url: string) => {
+      let href = "";
+      if (info.href) {
         try {
-          return new URL(url).pathname;
-        } catch { return url; }
-      });
-      const uniquePages = [...new Set(pages)].slice(0, 5);
-      const lead = v.leadId ? leadMap[v.leadId.toString()] : null;
-      const minutesAgo = Math.round((now.getTime() - new Date(v.lastSeen).getTime()) / 60000);
+          href = new URL(info.href, "https://x.com").pathname;
+        } catch {
+          href = info.href;
+        }
+      }
 
       return {
-        id: v._id,
-        label: lead ? lead.name || lead.email : `Visitor #${String.fromCharCode(65 + (i % 26))}-${v._id.slice(-4)}`,
-        device,
-        pages: uniquePages,
-        heat: visitorHeatMap[v._id] || "New",
-        minutesAgo,
-        isLive: minutesAgo < 1,
-        clicks: [] as any[],
+        label,
+        tagName: info.tagName || "ELEMENT",
+        href,
+        count: item.count,
+        percent: Math.round((item.count / maxClicks) * 100),
       };
     });
-
-    // Fetch recent click events for live visitors
-    if (liveVisitorIds.length > 0) {
-      const clickEvents = await Event.find({
-        workspaceId,
-        visitorId: { $in: liveVisitorIds },
-        event: "click",
-        timestamp: { $gte: fifteenMinAgo },
-      })
-        .sort({ timestamp: -1 })
-        .limit(100)
-        .select("visitorId data timestamp")
-        .lean();
-
-      // Group clicks by visitorId
-      const clicksByVisitor: Record<string, any[]> = {};
-      for (const ev of clickEvents) {
-        const vid = (ev as any).visitorId;
-        if (!clicksByVisitor[vid]) clicksByVisitor[vid] = [];
-        if (clicksByVisitor[vid].length >= 10) continue; // max 10 clicks per visitor
-        const d = (ev as any).data || {};
-        clicksByVisitor[vid].push({
-          text: d.text || "",
-          tagName: d.tagName || "",
-          href: d.href || "",
-          id: d.id || "",
-          url: d.url || "",
-          timestamp: (ev as any).timestamp,
-        });
-      }
-
-      // Attach clicks to each live visitor
-      for (const visitor of liveVisitors) {
-        visitor.clicks = clicksByVisitor[visitor.id] || [];
-      }
-    }
 
     // Process device breakdown
     const deviceCounts: { Desktop: number; Mobile: number; Tablet: number } = { Desktop: 0, Mobile: 0, Tablet: 0 };
@@ -493,8 +431,7 @@ export class TrackerService {
       uniqueVisitors: uniqueAnonymousVisitors,
       avgPagesPerSession,
       engagementHeatScore,
-      liveVisitors,
-      liveVisitorCount: liveVisitors.length,
+      clickHotspots,
       deviceBreakdown,
     };
   }

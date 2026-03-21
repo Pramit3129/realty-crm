@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  Users,
   Eye,
   FileText,
   RefreshCw,
@@ -10,9 +9,9 @@ import {
   Monitor,
   Smartphone,
   Tablet,
-  Flame,
   Activity,
   MousePointerClick,
+  BarChart3,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,24 +23,12 @@ interface AnalyticsViewProps {
   workspaceId: string;
 }
 
-interface ClickAction {
-  text: string;
+interface ClickHotspot {
+  label: string;
   tagName: string;
   href: string;
-  id: string;
-  url: string;
-  timestamp: string;
-}
-
-interface LiveVisitor {
-  id: string;
-  label: string;
-  device: "Desktop" | "Mobile" | "Tablet";
-  pages: string[];
-  clicks: ClickAction[];
-  heat: "Hot" | "Warm" | "Cool" | "New";
-  minutesAgo: number;
-  isLive: boolean;
+  count: number;
+  percent: number;
 }
 
 interface DashboardStats {
@@ -49,23 +36,34 @@ interface DashboardStats {
   uniqueVisitors: number;
   avgPagesPerSession: number;
   engagementHeatScore: { hot: number; warm: number; cool: number; new: number };
-  liveVisitors: LiveVisitor[];
-  liveVisitorCount: number;
+  clickHotspots: ClickHotspot[];
   deviceBreakdown: { desktop: number; mobile: number; tablet: number };
 }
 
-const HEAT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  Hot: { bg: "bg-red-500/10", text: "text-red-400", dot: "bg-red-500" },
-  Warm: { bg: "bg-amber-500/10", text: "text-amber-400", dot: "bg-amber-500" },
-  Cool: { bg: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-500" },
-  New: { bg: "bg-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-500" },
+const TAG_COLORS: Record<string, string> = {
+  A: "text-blue-400",
+  BUTTON: "text-violet-400",
+  INPUT: "text-amber-400",
 };
 
-const DEVICE_ICONS: Record<string, any> = {
-  Desktop: Monitor,
-  Mobile: Smartphone,
-  Tablet: Tablet,
+const TAG_LABELS: Record<string, string> = {
+  A: "Link",
+  BUTTON: "Button",
+  INPUT: "Input",
 };
+
+const BAR_COLORS = [
+  "bg-violet-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+  "bg-indigo-500",
+  "bg-pink-500",
+  "bg-teal-500",
+  "bg-orange-500",
+];
 
 export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
   const [loading, setLoading] = useState(true);
@@ -181,124 +179,74 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
 
         {/* ── Main Grid: Live Visitors + Right Column ─── */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left: Live Visitor Sessions */}
+          {/* Left: Click Hotspots Bar Chart */}
           <div className="lg:col-span-3">
             <Card className="border-border/40 bg-card/30 backdrop-blur-[2px] shadow-sm">
               <CardContent className="p-0">
                 {/* Card header */}
                 <div className="px-6 pt-5 pb-4 flex items-center justify-between border-b border-border/10">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <BarChart3 className="h-4 w-4 text-violet-400/60" />
                     <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-                      Live Visitor Sessions — Right Now
+                      Most Clicked Elements
                     </h2>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                    </span>
-                    <span className="text-[10px] font-bold text-muted-foreground/60">
-                      {stats.liveVisitorCount} active now
-                    </span>
-                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground/40">
+                    Top {stats.clickHotspots.length}
+                  </span>
                 </div>
 
-                {/* Visitor list */}
-                <div className="divide-y divide-border/5">
-                  {stats.liveVisitors.length === 0 ? (
-                    <div className="px-6 py-12 text-center">
-                      <Users className="h-8 w-8 text-muted-foreground/15 mx-auto mb-3" />
+                {/* Bar chart */}
+                <div className="px-6 py-4 space-y-3">
+                  {stats.clickHotspots.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <MousePointerClick className="h-8 w-8 text-muted-foreground/15 mx-auto mb-3" />
                       <p className="text-sm text-muted-foreground/40 font-medium">
-                        No active visitors in the last 15 minutes
+                        No click data yet
                       </p>
                       <p className="text-[11px] text-muted-foreground/30 mt-1">
-                        Visitors will appear here when page_view events are tracked
+                        Clicks will appear here once visitors interact with your site
                       </p>
                     </div>
                   ) : (
-                    stats.liveVisitors.map((visitor) => {
-                      const DeviceIcon = DEVICE_ICONS[visitor.device] || Monitor;
-                      const heatStyle = HEAT_COLORS[visitor.heat] || HEAT_COLORS.New;
-                      return (
-                        <div
-                          key={visitor.id}
-                          className="px-6 py-3.5 flex items-start gap-3 hover:bg-white/[0.02] transition-colors"
-                        >
-                          {/* Device icon */}
-                          <div className="mt-0.5 h-8 w-8 rounded-lg bg-accent/5 border border-border/10 flex items-center justify-center shrink-0">
-                            <DeviceIcon className="h-4 w-4 text-muted-foreground/40" />
-                          </div>
-
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold text-foreground/80 truncate">
-                                {visitor.label}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground/40">
-                                · {visitor.device}
-                              </span>
-                            </div>
-                            {/* Pages visited as tags */}
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              {visitor.pages.map((page, idx) => (
-                                <span
-                                  key={idx}
-                                  className="px-2 py-0.5 rounded text-[10px] font-medium bg-accent/5 border border-border/10 text-muted-foreground/60 truncate max-w-[140px]"
-                                >
-                                  {page}
-                                </span>
-                              ))}
-                            </div>
-
-                            {/* Click actions */}
-                            {visitor.clicks && visitor.clicks.length > 0 && (
-                              <div className="mt-2 space-y-1">
-                                {visitor.clicks.slice(0, 5).map((click, idx) => {
-                                  const label = formatClickLabel(click);
-                                  return (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50"
-                                    >
-                                      <MousePointerClick className="h-3 w-3 text-violet-400/60 shrink-0" />
-                                      <span className="truncate max-w-[260px]">
-                                        {label}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                                {visitor.clicks.length > 5 && (
-                                  <span className="text-[9px] text-muted-foreground/30 pl-[18px]">
-                                    +{visitor.clicks.length - 5} more clicks
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Heat + time */}
-                          <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                    stats.clickHotspots.map((hotspot, idx) => (
+                      <div key={idx} className="group">
+                        {/* Label row */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <span
                               className={cn(
-                                "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-                                heatStyle.bg,
-                                heatStyle.text
+                                "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-border/10 bg-accent/5",
+                                TAG_COLORS[hotspot.tagName] || "text-muted-foreground/50"
                               )}
                             >
-                              {visitor.heat}
+                              {TAG_LABELS[hotspot.tagName] || hotspot.tagName}
                             </span>
-                            <span className="text-[10px] text-muted-foreground/40 whitespace-nowrap">
-                              {visitor.isLive ? (
-                                <span className="text-emerald-400 font-bold">Live</span>
-                              ) : (
-                                `${visitor.minutesAgo}m ago`
-                              )}
+                            <span className="text-xs font-semibold text-foreground/80 truncate">
+                              {hotspot.label}
                             </span>
+                            {hotspot.href && (
+                              <span className="text-[10px] text-muted-foreground/30 truncate max-w-[120px] hidden sm:inline">
+                                → {hotspot.href}
+                              </span>
+                            )}
                           </div>
+                          <span className="text-xs font-black text-foreground/70 tabular-nums shrink-0 ml-2">
+                            {hotspot.count}
+                          </span>
                         </div>
-                      );
-                    })
+                        {/* Bar */}
+                        <div className="h-2 rounded-full bg-accent/5 border border-border/10 overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-700 ease-out",
+                              BAR_COLORS[idx % BAR_COLORS.length]
+                            )}
+                            style={{ width: `${hotspot.percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </CardContent>
@@ -512,30 +460,3 @@ function formatNumber(num: number): string {
   return num.toLocaleString();
 }
 
-function formatClickLabel(click: ClickAction): string {
-  const tag = click.tagName?.toUpperCase();
-  const text = click.text?.trim();
-  const href = click.href?.trim();
-
-  if (tag === "A" && href) {
-    try {
-      const path = new URL(href, "https://x.com").pathname;
-      if (text) return `Clicked "${text}" → ${path}`;
-      return `Clicked link → ${path}`;
-    } catch {
-      if (text) return `Clicked "${text}" link`;
-      return `Clicked link → ${href.slice(0, 60)}`;
-    }
-  }
-
-  if (tag === "BUTTON" || tag === "INPUT") {
-    const kind = tag === "BUTTON" ? "button" : "input";
-    if (text) return `Clicked "${text}" ${kind}`;
-    if (click.id) return `Clicked #${click.id} ${kind}`;
-    return `Clicked ${kind}`;
-  }
-
-  if (text) return `Clicked "${text}"`;
-  if (click.id) return `Clicked #${click.id}`;
-  return "Clicked element";
-}
