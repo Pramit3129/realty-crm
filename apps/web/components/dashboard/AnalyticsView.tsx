@@ -12,6 +12,7 @@ import {
   Tablet,
   Flame,
   Activity,
+  MousePointerClick,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,11 +24,21 @@ interface AnalyticsViewProps {
   workspaceId: string;
 }
 
+interface ClickAction {
+  text: string;
+  tagName: string;
+  href: string;
+  id: string;
+  url: string;
+  timestamp: string;
+}
+
 interface LiveVisitor {
   id: string;
   label: string;
   device: "Desktop" | "Mobile" | "Tablet";
   pages: string[];
+  clicks: ClickAction[];
   heat: "Hot" | "Warm" | "Cool" | "New";
   minutesAgo: number;
   isLive: boolean;
@@ -239,6 +250,31 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                                 </span>
                               ))}
                             </div>
+
+                            {/* Click actions */}
+                            {visitor.clicks && visitor.clicks.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {visitor.clicks.slice(0, 5).map((click, idx) => {
+                                  const label = formatClickLabel(click);
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50"
+                                    >
+                                      <MousePointerClick className="h-3 w-3 text-violet-400/60 shrink-0" />
+                                      <span className="truncate max-w-[260px]">
+                                        {label}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                {visitor.clicks.length > 5 && (
+                                  <span className="text-[9px] text-muted-foreground/30 pl-[18px]">
+                                    +{visitor.clicks.length - 5} more clicks
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Heat + time */}
@@ -474,4 +510,32 @@ function formatNumber(num: number): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
   if (num >= 1_000) return (num / 1_000).toFixed(1) + "K";
   return num.toLocaleString();
+}
+
+function formatClickLabel(click: ClickAction): string {
+  const tag = click.tagName?.toUpperCase();
+  const text = click.text?.trim();
+  const href = click.href?.trim();
+
+  if (tag === "A" && href) {
+    try {
+      const path = new URL(href, "https://x.com").pathname;
+      if (text) return `Clicked "${text}" → ${path}`;
+      return `Clicked link → ${path}`;
+    } catch {
+      if (text) return `Clicked "${text}" link`;
+      return `Clicked link → ${href.slice(0, 60)}`;
+    }
+  }
+
+  if (tag === "BUTTON" || tag === "INPUT") {
+    const kind = tag === "BUTTON" ? "button" : "input";
+    if (text) return `Clicked "${text}" ${kind}`;
+    if (click.id) return `Clicked #${click.id} ${kind}`;
+    return `Clicked ${kind}`;
+  }
+
+  if (text) return `Clicked "${text}"`;
+  if (click.id) return `Clicked #${click.id}`;
+  return "Clicked element";
 }
