@@ -25,6 +25,7 @@ interface AnalyticsViewProps {
 
 interface ClickHotspot {
   label: string;
+  eventType: string;
   tagName: string;
   href: string;
   count: number;
@@ -41,12 +42,18 @@ interface DashboardStats {
 }
 
 const TAG_COLORS: Record<string, string> = {
+  page_view: "text-emerald-400",
+  click: "text-violet-400",
+  form_submit: "text-amber-400",
   A: "text-blue-400",
   BUTTON: "text-violet-400",
   INPUT: "text-amber-400",
 };
 
 const TAG_LABELS: Record<string, string> = {
+  page_view: "Page",
+  click: "Click",
+  form_submit: "Form",
   A: "Link",
   BUTTON: "Button",
   INPUT: "Input",
@@ -188,7 +195,7 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                   <div className="flex items-center gap-2.5">
                     <BarChart3 className="h-4 w-4 text-violet-400/60" />
                     <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70">
-                      Most Clicked Elements
+                      Top Interactions
                     </h2>
                   </div>
                   <span className="text-[10px] font-bold text-muted-foreground/40">
@@ -202,10 +209,10 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                     <div className="py-10 text-center">
                       <MousePointerClick className="h-8 w-8 text-muted-foreground/15 mx-auto mb-3" />
                       <p className="text-sm text-muted-foreground/40 font-medium">
-                        No click data yet
+                        No interaction data yet
                       </p>
                       <p className="text-[11px] text-muted-foreground/30 mt-1">
-                        Clicks will appear here once visitors interact with your site
+                        Page views, clicks, and form submissions will appear here
                       </p>
                     </div>
                   ) : (
@@ -217,10 +224,10 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                             <span
                               className={cn(
                                 "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-border/10 bg-accent/5",
-                                TAG_COLORS[hotspot.tagName] || "text-muted-foreground/50"
+                                TAG_COLORS[hotspot.eventType] || TAG_COLORS[hotspot.tagName] || "text-muted-foreground/50"
                               )}
                             >
-                              {TAG_LABELS[hotspot.tagName] || hotspot.tagName}
+                              {TAG_LABELS[hotspot.eventType] || TAG_LABELS[hotspot.tagName] || hotspot.eventType}
                             </span>
                             <span className="text-xs font-semibold text-foreground/80 truncate">
                               {hotspot.label}

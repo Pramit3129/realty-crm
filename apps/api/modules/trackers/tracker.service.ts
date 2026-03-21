@@ -331,28 +331,40 @@ export class TrackerService {
         }
       ]),
 
-      // 5. Click hotspots — group click events by element text, count occurrences
+      // 5. Top interactions — all events grouped by type and key data
       Event.aggregate([
         {
           $match: {
             workspaceId: new (mongoose.Types.ObjectId as any)(workspaceId),
-            event: "click",
-            "data.text": { $exists: true, $ne: "" }
+          }
+        },
+        {
+          $project: {
+            event: 1,
+            data: 1,
+            timestamp: 1,
+            _key: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$event", "page_view"] }, then: "$data.url" },
+                  { case: { $eq: ["$event", "click"] }, then: { $ifNull: ["$data.text", "Unknown click"] } },
+                  { case: { $eq: ["$event", "form_submit"] }, then: { $ifNull: ["$data.formId", "Unknown form"] } },
+                ],
+                default: "other"
+              }
+            }
           }
         },
         {
           $group: {
-            _id: {
-              text: "$data.text",
-              tagName: "$data.tagName",
-              href: "$data.href"
-            },
+            _id: { event: "$event", key: "$_key" },
             count: { $sum: 1 },
-            lastClicked: { $max: "$timestamp" }
+            lastSeen: { $max: "$timestamp" },
+            sampleData: { $first: "$data" }
           }
         },
         { $sort: { count: -1 } },
-        { $limit: 10 }
+        { $limit: 15 }
       ]),
 
       // 6. Device breakdown — from all events with userAgent
@@ -388,28 +400,46 @@ export class TrackerService {
       new: Math.round((heatMap.new / heatTotal) * 100),
     };
 
-    // Process click hotspots
-    const maxClicks = clickHotspotsRaw.length > 0 ? clickHotspotsRaw[0].count : 1;
+    // Process top interactions
+    const maxCount = clickHotspotsRaw.length > 0 ? clickHotspotsRaw[0].count : 1;
     const clickHotspots = clickHotspotsRaw.map((item: any) => {
-      const info = item._id;
-      let label = info.text || "Unknown";
-      if (label.length > 50) label = label.slice(0, 47) + "...";
-
+      const eventType: string = item._id.event || "unknown";
+      const rawKey: string = item._id.key || "";
+      let label = rawKey;
       let href = "";
-      if (info.href) {
+
+      // Prettify label based on event type
+      if (eventType === "page_view" && rawKey) {
         try {
-          href = new URL(info.href, "https://x.com").pathname;
+          const url = new URL(rawKey);
+          label = url.pathname === "/" ? "Home Page" : url.pathname;
+          href = url.pathname;
         } catch {
-          href = info.href;
+          label = rawKey.slice(0, 60);
         }
+      } else if (eventType === "click") {
+        label = rawKey || "Unknown click";
+        const data = item.sampleData || {};
+        if (data.href) {
+          try {
+            href = new URL(data.href, "https://x.com").pathname;
+          } catch {
+            href = data.href;
+          }
+        }
+      } else if (eventType === "form_submit") {
+        label = rawKey === "unknown" ? "Form Submission" : `Form: ${rawKey}`;
       }
+
+      if (label.length > 50) label = label.slice(0, 47) + "...";
 
       return {
         label,
-        tagName: info.tagName || "ELEMENT",
+        eventType,
+        tagName: eventType === "click" ? (item.sampleData?.tagName || "ELEMENT") : eventType.toUpperCase(),
         href,
         count: item.count,
-        percent: Math.round((item.count / maxClicks) * 100),
+        percent: Math.round((item.count / maxCount) * 100),
       };
     });
 
