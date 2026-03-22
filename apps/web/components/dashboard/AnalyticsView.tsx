@@ -46,6 +46,8 @@ interface LeadEngagement {
   leadId: string;
   name: string;
   email: string;
+  phone: string;
+  city: string;
   totalEvents: number;
   lastSeen: string;
   buttonTexts: string[];
@@ -93,13 +95,21 @@ function stringToHue(str: string): number {
 }
 
 const BAR_PALETTE = [
-  "#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
-  "#06b6d4", "#6366f1", "#ec4899", "#14b8a6", "#f97316",
+  "#8b5cf6",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#06b6d4",
+  "#6366f1",
+  "#ec4899",
+  "#14b8a6",
+  "#f97316",
 ];
 
 const RANK_STYLES = [
   { bg: "bg-amber-400/10", text: "text-amber-500", icon: "🥇" },
-  { bg: "bg-slate-400/10",  text: "text-slate-400",  icon: "🥈" },
+  { bg: "bg-slate-400/10", text: "text-slate-400", icon: "🥈" },
   { bg: "bg-orange-400/10", text: "text-orange-400", icon: "🥉" },
 ];
 
@@ -122,12 +132,18 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
 
       try {
         const [statsRes, leadsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/trackers/workspace/${workspaceId}/dashboard-stats`, {
-            headers: { Authorization: `Bearer ${getToken()}` },
-          }),
-          fetch(`${API_BASE_URL}/trackers/workspace/${workspaceId}/lead-engagement`, {
-            headers: { Authorization: `Bearer ${getToken()}` },
-          }),
+          fetch(
+            `${API_BASE_URL}/trackers/workspace/${workspaceId}/dashboard-stats`,
+            {
+              headers: { Authorization: `Bearer ${getToken()}` },
+            },
+          ),
+          fetch(
+            `${API_BASE_URL}/trackers/workspace/${workspaceId}/lead-engagement`,
+            {
+              headers: { Authorization: `Bearer ${getToken()}` },
+            },
+          ),
         ]);
 
         if (statsRes.ok) {
@@ -147,7 +163,7 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
         setRefreshing(false);
       }
     },
-    [workspaceId]
+    [workspaceId],
   );
 
   useEffect(() => {
@@ -222,7 +238,9 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
             <div className="text-2xl font-bold tracking-tight text-foreground">
               {formatNumber(stats.totalSessions)}
             </div>
-            <p className="text-[10px] text-muted-foreground/70 mt-1">Total engagement</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-1">
+              Total engagement
+            </p>
           </div>
 
           <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
@@ -235,7 +253,9 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
             <div className="text-2xl font-bold tracking-tight text-foreground">
               {formatNumber(stats.uniqueVisitors)}
             </div>
-            <p className="text-[10px] text-muted-foreground/70 mt-1">Anonymous visitors</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-1">
+              Anonymous visitors
+            </p>
           </div>
 
           <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
@@ -248,7 +268,9 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
             <div className="text-2xl font-bold tracking-tight text-foreground">
               {stats.avgPagesPerSession}
             </div>
-            <p className="text-[10px] text-muted-foreground/70 mt-1">Pages per visitor</p>
+            <p className="text-[10px] text-muted-foreground/70 mt-1">
+              Pages per visitor
+            </p>
           </div>
         </div>
 
@@ -272,9 +294,12 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
               {leads.length === 0 ? (
                 <div className="px-6 py-12 text-center">
                   <Trophy className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No identified leads yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    No identified leads yet
+                  </p>
                   <p className="text-[11px] text-muted-foreground/70 mt-1">
-                    Once visitors are identified, they'll appear here ranked by activity
+                    Once visitors are identified, they'll appear here ranked by
+                    activity
                   </p>
                 </div>
               ) : (
@@ -309,7 +334,9 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                           <div className="flex items-center gap-1.5 min-w-0">
                             {/* Rank badge for top 3 */}
                             {rank && (
-                              <span className={`text-[11px] shrink-0`}>{rank.icon}</span>
+                              <span className={`text-[11px] shrink-0`}>
+                                {rank.icon}
+                              </span>
                             )}
                             {!rank && (
                               <span className="text-[10px] font-bold text-muted-foreground/40 tabular-nums shrink-0 w-4">
@@ -331,7 +358,7 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                         </div>
 
                         {/* Email + last seen */}
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-2 mb-1">
                           <span className="text-[11px] text-muted-foreground truncate">
                             {lead.email}
                           </span>
@@ -339,6 +366,22 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                             · {timeAgo(lead.lastSeen)}
                           </span>
                         </div>
+
+                        {/* Phone + City */}
+                        {(lead.phone || lead.city) && (
+                          <div className="flex items-center gap-3 mb-2">
+                            {lead.phone && (
+                              <span className="text-[10px] text-muted-foreground/70">
+                                📞 {lead.phone}
+                              </span>
+                            )}
+                            {lead.city && (
+                              <span className="text-[10px] text-muted-foreground/70">
+                                📍 {lead.city}
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Button text tags */}
                         {lead.buttonTexts.length > 0 && (
@@ -372,16 +415,40 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
 
               <div className="h-2.5 rounded-full overflow-hidden flex bg-muted">
                 {heat.hot > 0 && (
-                  <div className="transition-all duration-700" style={{ width: `${heat.hot}%`, backgroundColor: "#ef4444" }} />
+                  <div
+                    className="transition-all duration-700"
+                    style={{
+                      width: `${heat.hot}%`,
+                      backgroundColor: "#ef4444",
+                    }}
+                  />
                 )}
                 {heat.warm > 0 && (
-                  <div className="transition-all duration-700" style={{ width: `${heat.warm}%`, backgroundColor: "#f59e0b" }} />
+                  <div
+                    className="transition-all duration-700"
+                    style={{
+                      width: `${heat.warm}%`,
+                      backgroundColor: "#f59e0b",
+                    }}
+                  />
                 )}
                 {heat.cool > 0 && (
-                  <div className="transition-all duration-700" style={{ width: `${heat.cool}%`, backgroundColor: "#3b82f6" }} />
+                  <div
+                    className="transition-all duration-700"
+                    style={{
+                      width: `${heat.cool}%`,
+                      backgroundColor: "#3b82f6",
+                    }}
+                  />
                 )}
                 {heat.new > 0 && (
-                  <div className="transition-all duration-700" style={{ width: `${heat.new}%`, backgroundColor: "#10b981" }} />
+                  <div
+                    className="transition-all duration-700"
+                    style={{
+                      width: `${heat.new}%`,
+                      backgroundColor: "#10b981",
+                    }}
+                  />
                 )}
               </div>
 
@@ -397,7 +464,9 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                       className="h-2 w-2 rounded-full shrink-0"
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="text-xs text-muted-foreground">{item.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.label}
+                    </span>
                     <span className="text-xs font-bold text-foreground ml-auto tabular-nums">
                       {item.value}%
                     </span>
@@ -414,32 +483,56 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
 
               <div className="space-y-3">
                 {[
-                  { icon: Monitor, label: "Desktop", value: device.desktop, color: "#3b82f6" },
-                  { icon: Smartphone, label: "Mobile", value: device.mobile, color: "#8b5cf6" },
-                  { icon: Tablet, label: "Tablet", value: device.tablet, color: "#10b981" },
+                  {
+                    icon: Monitor,
+                    label: "Desktop",
+                    value: device.desktop,
+                    color: "#3b82f6",
+                  },
+                  {
+                    icon: Smartphone,
+                    label: "Mobile",
+                    value: device.mobile,
+                    color: "#8b5cf6",
+                  },
+                  {
+                    icon: Tablet,
+                    label: "Tablet",
+                    value: device.tablet,
+                    color: "#10b981",
+                  },
                 ].map((d) => (
                   <div key={d.label} className="flex items-center gap-3">
                     <d.icon className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-foreground">{d.label}</span>
-                        <span className="text-xs font-bold text-foreground tabular-nums">{d.value}%</span>
+                        <span className="text-xs text-foreground">
+                          {d.label}
+                        </span>
+                        <span className="text-xs font-bold text-foreground tabular-nums">
+                          {d.value}%
+                        </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${d.value}%`, backgroundColor: d.color }}
+                          style={{
+                            width: `${d.value}%`,
+                            backgroundColor: d.color,
+                          }}
                         />
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {device.desktop === 0 && device.mobile === 0 && device.tablet === 0 && (
-                  <p className="text-[10px] text-muted-foreground italic text-center pt-2">
-                    Device data will appear after new events arrive.
-                  </p>
-                )}
+                {device.desktop === 0 &&
+                  device.mobile === 0 &&
+                  device.tablet === 0 && (
+                    <p className="text-[10px] text-muted-foreground italic text-center pt-2">
+                      Device data will appear after new events arrive.
+                    </p>
+                  )}
               </div>
             </section>
           </div>
@@ -460,7 +553,9 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
             {stats.clickHotspots.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <MousePointerClick className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No interaction data yet</p>
+                <p className="text-sm text-muted-foreground">
+                  No interaction data yet
+                </p>
                 <p className="text-[11px] text-muted-foreground/70 mt-1">
                   Page views, clicks, and form submissions will appear here
                 </p>
@@ -499,7 +594,8 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                         className="h-full rounded-full transition-all duration-700"
                         style={{
                           width: `${item.percent}%`,
-                          backgroundColor: BAR_PALETTE[idx % BAR_PALETTE.length],
+                          backgroundColor:
+                            BAR_PALETTE[idx % BAR_PALETTE.length],
                         }}
                       />
                     </div>

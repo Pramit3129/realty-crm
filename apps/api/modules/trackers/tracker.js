@@ -113,9 +113,19 @@ export default {
       identified = true;
 
       const nameInput = form.querySelector(
-        "input[name='name'], input[name*='name']"
+        "input[name='name'], input[name*='name'], input[name*='first'], input[name*='last'], input[placeholder*='name'], input[id*='name']"
       );
       const name = nameInput?.value || "";
+
+      const phoneInput = form.querySelector(
+        "input[type='tel'], input[name='phone'], input[name*='phone'], input[name*='mobile'], input[name*='cell'], input[placeholder*='phone'], input[id*='phone']"
+      );
+      const phone = phoneInput?.value?.trim() || "";
+
+      const cityInput = form.querySelector(
+        "input[name='city'], input[name*='city'], input[name*='location'], input[placeholder*='city'], input[id*='city']"
+      );
+      const city = cityInput?.value?.trim() || "";
 
       fetch(IDENTIFY_URL, {
         method: "POST",
@@ -126,7 +136,9 @@ export default {
           apiKey,
           visitorId,
           email,
-          name
+          name,
+          phone,
+          city
         }),
         keepalive: true
       }).catch(() => {});
@@ -134,7 +146,11 @@ export default {
       // Track form event
       track("form_submit", {
         formId: form.id || "unknown",
-        emailCaptured: true
+        emailCaptured: true,
+        email: email,
+        name: name,
+        phone: phone,
+        city: city
       });
 
     } catch (err) {
@@ -145,7 +161,7 @@ export default {
   // 🔥 MANUAL API
   window.crmTracker = {
     track: track,
-    identify: async function(email, name) {
+    identify: async function(email, name, phone, city) {
       if (!email) return console.error("Email required");
 
       try {
@@ -156,7 +172,9 @@ export default {
             apiKey,
             visitorId,
             email,
-            name
+            name,
+            phone,
+            city
           })
         });
       } catch (err) {

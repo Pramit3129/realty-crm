@@ -5,6 +5,7 @@ import { Event } from "./events.model";
 import { Visitor } from "./visitors.model";
 import { Lead } from "../lead/lead.model";
 import { ApiKey } from "./key.model";
+import { ensureDefaultPipelines } from "../pipeline/pipeline.seed";
 
 export class TrackerService {
   public isValidDomain(origin: string, domain: string | null | undefined) {
@@ -89,7 +90,9 @@ export class TrackerService {
     visitorId: string,
     email: string,
     name: string | undefined,
-    origin: string
+    origin: string,
+    phone?: string,
+    city?: string
   ) {
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -104,18 +107,45 @@ export class TrackerService {
       throw new Error("INVALID_DOMAIN");
     }
 
-    // 2. Find or create lead
+    // 2. Find if lead exists to handle required fields for new leads
+    const existingLead = await Lead.findOne({ email: normalizedEmail, workspaceId: keyDoc.workspace as any });
+    
+    // 3. Build $set fields — only include non-empty values
+    const setFields: Record<string, any> = {
+      realtorId: keyDoc.user,
+    };
+    if (typeof name === "string" && name.trim()) setFields.name = name.slice(0, 100);
+    if (typeof phone === "string" && phone.trim()) setFields.phone = phone.slice(0, 20);
+    if (typeof city === "string" && city.trim()) setFields.city = city.slice(0, 100);
+
+    // 4. Handle required fields for NEW leads
+    const onInsertFields: Record<string, any> = {
+      workspaceId: keyDoc.workspace,
+      source: "tracker"
+    };
+
+    if (!existingLead) {
+      // Get default pipeline/stage for new leads
+      const defaults = await ensureDefaultPipelines(
+        keyDoc.workspace.toString(),
+        keyDoc.user.toString()
+      );
+      onInsertFields.pipelineId = defaults.buyer.pipelineId;
+      onInsertFields.stageId = defaults.buyer.firstStageId;
+      onInsertFields.status = "New Inquiry"; // Default status
+
+      // Ensure name is present for new leads
+      if (!setFields.name) {
+        setFields.name = email.split("@")[0] || "Unknown Visitor";
+      }
+    }
+
+    // 5. Find or create lead
     const lead = await Lead.findOneAndUpdate(
       { email: normalizedEmail, workspaceId: keyDoc.workspace as any },
       {
-        $set: { 
-          name: typeof name === "string" ? name.slice(0, 100) : undefined,
-          realtorId: keyDoc.user 
-        },
-        $setOnInsert: { 
-          workspaceId: keyDoc.workspace,
-          source: "tracker" 
-        }
+        $set: setFields,
+        $setOnInsert: onInsertFields
       },
       { upsert: true, new: true }
     );
@@ -546,6 +576,8 @@ export class TrackerService {
           buttonTextsRaw: 1,
           "lead.name": 1,
           "lead.email": 1,
+          "lead.phone": 1,
+          "lead.city": 1,
         },
       },
     ]);
@@ -564,6 +596,8 @@ export class TrackerService {
         leadId: r._id,
         name: r.lead?.name ?? "Unknown",
         email: r.lead?.email ?? "",
+        phone: r.lead?.phone ?? "",
+        city: r.lead?.city ?? "",
         totalEvents: r.totalEvents,
         lastSeen: r.lastSeen,
         buttonTexts,

@@ -38,7 +38,7 @@ export const trackBatch = async (req: Request, res: Response) => {
 
 export const identifyVisitor = async (req: Request, res: Response) => {
   try {
-    const { apiKey, visitorId, email, name } = req.body;
+    const { apiKey, visitorId, email, name, phone, city } = req.body;
 
     if (!email) {
       return res.status(400).send("Email required");
@@ -54,7 +54,7 @@ export const identifyVisitor = async (req: Request, res: Response) => {
 
     const origin = req.headers.origin || req.headers.referer || "";
 
-    const lead = await trackerService.identifyVisitor(apiKey, visitorId, email, name, origin);
+    const lead = await trackerService.identifyVisitor(apiKey, visitorId, email, name, origin, phone, city);
     
     return res.json({ success: true, lead });
   } catch (err: any) {
