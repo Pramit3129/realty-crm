@@ -1,5 +1,5 @@
 import stripe from "stripe";
-
+import { Subscription } from "./subscription.model";
 const Stripe = new stripe(process.env.STRIPE_SECRET_KEY!);
 
 interface Price {
@@ -15,23 +15,40 @@ interface stripeProducts {
 }
 
 const createSubscriptions = async (products: stripeProducts[]) => {
-     products.map(async (product) => {
-          const subscription = await Stripe.products.create({
-               name: product.name,
-               description: product.description,
-          });
+     try {
+          const subscriptionDocs = [];
 
-          const prices = product.prices.map(async (price) => {
-               const subscriptionPrice = await Stripe.prices.create({
-                    product: subscription.id,
-                    unit_amount: price.amountInCents,
-                    currency: price.currency,
-                    recurring: {
-                         interval: price.interval,
-                    },
+          for (const product of products) {
+               const subscription = await Stripe.products.create({
+                    name: product.name,
+                    description: product.description,
                });
-          });
-     });
+
+               for (const price of product.prices) {
+                    const subscriptionPrice = await Stripe.prices.create({
+                         product: subscription.id,
+                         unit_amount: price.amountInCents,
+                         currency: price.currency,
+                         recurring: {
+                              interval: price.interval,
+                         },
+                    });
+
+                    subscriptionDocs.push({
+                         planName: product.name,
+                         planId: subscription.id,
+                         priceId: subscriptionPrice.id,
+                    });
+               }
+          }
+
+          if (subscriptionDocs.length > 0) {
+               await Subscription.insertMany(subscriptionDocs);
+               console.log(`Bulk inserted ${subscriptionDocs.length} subscriptions successfully`);
+          }
+     } catch (error) {
+          console.error("Error in creating subscriptions:", error);
+     }
 };
 
 const products: stripeProducts[] = [
