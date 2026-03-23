@@ -20,6 +20,8 @@ import communicationModule from "./modules/communication/communication.module";
 import activityModule from "./modules/activity/activity.module";
 import uploadModule from "./modules/upload/upload.module";
 import trackerModule from "./modules/trackers/tracker.module";
+import paymentModule from "./modules/paymentIntegration/payment.module";
+
 const app = express();
 
 // ── Global Middleware ─────────────────────────────────────────────────
@@ -60,5 +62,7 @@ app.use("/api/v1/activity", activityModule);
 app.use("/api/v1/upload", uploadModule);
 
 app.use("/api/v1/trackers", trackerModule);
+app.use("/api/v1/payment", paymentModule);
 
 export default app;
+

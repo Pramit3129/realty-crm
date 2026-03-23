@@ -8,6 +8,7 @@ import {
     renewWatches,
 } from "./emailIntegration.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
+import requirePro from "../../shared/middleware/requirePro";
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.post("/webhook/renew-watches", renewWatches as any);
 
 // ── Protected routes (authenticated via user JWT) ──
 router.use(requireAuth);
+router.use(requirePro);
 
 router.get("/google/auth-url", getGoogleAuthUrl as any);
 router.get("/status", getIntegrationStatus as any);

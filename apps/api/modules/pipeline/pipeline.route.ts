@@ -1,5 +1,6 @@
 import { Router } from "express";
 import requireAuth from "../../shared/middleware/requireAuth";
+import requirePro from "../../shared/middleware/requirePro";
 import { createPipeline, getPipelines, getPipelineDetails, updatePipeline, deletePipeline } from "./pipeline.controller";
 
 const router = Router();
@@ -10,6 +11,7 @@ router.get("/health", (req, res) => {
 
 
 router.use(requireAuth);
+router.use(requirePro);
 
 router.post("/create", createPipeline);
 router.get("/workspace/:workspaceId", getPipelines);

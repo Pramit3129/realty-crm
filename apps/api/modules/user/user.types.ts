@@ -1,4 +1,4 @@
-import { Document } from "mongoose";
+import { Document, Types } from "mongoose";
 
 export interface IUser extends Document {
     name: string;
@@ -20,7 +20,9 @@ export interface IUser extends Document {
     brandLogoUrl?: string;
     brokerageLogoUrl?: string;
     brokerageName?: string;
-    subscriptionPlan?: 'free' | 'pro' | 'enterprise';
+    subscriptionId?: Types.ObjectId;
+    stripeCustomerId?: string;
+    isSubscribed?: boolean;
     onboardingComplete?: boolean;
     avatarUrl?: string;
     website?: string;
@@ -48,6 +50,7 @@ export interface UserResponse {
     brandLogoUrl?: string;
     brokerageLogoUrl?: string;
     brokerageName?: string;
-    subscriptionPlan?: string;
+    subscriptionId?: Types.ObjectId;
+    isSubscribed?: boolean;
     website?: string;
 }

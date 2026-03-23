@@ -9,6 +9,7 @@ import {
 } from "../../shared/utils/token";
 import { userService } from "../user/user.service";
 import { emailIntegrationService } from "../emailIntegration/emailIntegration.service";
+import { Subscription, FREE_PLAN } from "../paymentIntegration/subscription.model";
 import type { UserResponse } from "../user/user.types";
 
 function getGoogleClient(): OAuth2Client {
@@ -56,6 +57,12 @@ class AuthService {
             email,
             password: hashedPassword,
         });
+
+        const freeSub =
+            (await Subscription.findOne({ planId: FREE_PLAN.planId })) ??
+            (await Subscription.create(FREE_PLAN));
+        await userService.updateUser(String(user._id), { subscriptionId: freeSub._id });
+        user.subscriptionId = freeSub._id;
 
         const tokens = this.generateTokens(
             String(user._id),
@@ -148,6 +155,13 @@ class AuthService {
                 password: hashedPassword,
                 role: "user",
             });
+
+            // Assign the shared free subscription to every new Google user (create it only once)
+            const freeSub =
+                (await Subscription.findOne({ planId: FREE_PLAN.planId })) ??
+                (await Subscription.create(FREE_PLAN));
+            await userService.updateUser(String(user._id), { subscriptionId: freeSub._id });
+            user.subscriptionId = freeSub._id;
         }
 
         if (avatarUrl && user.avatarUrl !== avatarUrl) {

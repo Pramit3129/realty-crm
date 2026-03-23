@@ -1,5 +1,6 @@
 import { Router } from "express";
 import requireAuth from "../../shared/middleware/requireAuth";
+import requirePro from "../../shared/middleware/requirePro";
 import {
     createPipelineStage,
     getStagesByPipeline,
@@ -19,6 +20,7 @@ router.get("/health", (req, res) => {
 });
 
 router.use(requireAuth);
+router.use(requirePro);
 
 // ── Standard CRUD ─────────────────────────────────────────────────────
 router.post("/create", createPipelineStage);

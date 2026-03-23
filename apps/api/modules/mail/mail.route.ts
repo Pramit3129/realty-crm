@@ -1,6 +1,7 @@
 import express from "express";
 import { generateMail, getAllTemplates, getTemplate } from "./mail.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
+import requirePro from "../../shared/middleware/requirePro";
 
 const router = express.Router();
 
@@ -9,6 +10,7 @@ router.get("/health", (req, res) => {
 });
 
 router.use(requireAuth);
+router.use(requirePro);
 
 router.post("/generateMail", generateMail);
 router.get("/templates", getAllTemplates);

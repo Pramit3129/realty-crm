@@ -2,6 +2,7 @@ import express from "express";
 import { createLead, getLeads, updateLead, deleteLead, getLeadDetails, addLeads, getLeadsByCampaing, assignCampaingToLeads, getLeadEmails, getAllEmails } from "./lead.controller";
 const router = express.Router();
 import requireAuth from "../../shared/middleware/requireAuth";
+import requirePro from "../../shared/middleware/requirePro";
 
 
 router.get("/health", (req, res) => {
@@ -9,6 +10,7 @@ router.get("/health", (req, res) => {
 });
 
 router.use(requireAuth);
+router.use(requirePro);
 
 router.post("/create", createLead);
 router.post("/addLeads", addLeads);

@@ -8,6 +8,7 @@ export interface AuthenticatedUser {
     email: string;
     name: string;
     role: string;
+    stripeCustomerId?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -55,6 +56,7 @@ async function requireAuth(
             email: user.email,
             name: user.name,
             role: user.role,
+            stripeCustomerId: user.stripeCustomerId,
         };
 
         next();

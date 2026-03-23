@@ -17,6 +17,7 @@ import {
   unsubscribeEmail
 } from "./campaign.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
+import requirePro from "../../shared/middleware/requirePro";
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.get("/track/:batchId/:leadId", trackEmailOpen);
 router.get("/unsubscribe/:leadId", unsubscribeEmail);
 
 router.use(requireAuth);
+router.use(requirePro);
 
 router.post("/create", createCampaing);
 router.put("/update", updateCampaing);

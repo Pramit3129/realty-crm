@@ -1,10 +1,12 @@
 import { Router } from "express";
 import requireAuth from "../../shared/middleware/requireAuth";
+import requirePro from "../../shared/middleware/requirePro";
 import * as noteController from "./note.controller";
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requirePro);
 
 router.post("/create", noteController.createNote);
 router.get("/workspace/:workspaceId", noteController.getNotes);
