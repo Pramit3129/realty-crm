@@ -21,9 +21,7 @@ COPY --from=install /app/node_modules ./node_modules
 COPY . .
 
 ENV NODE_ENV=production
-ENV PORT=8080
 
-EXPOSE 8080
 # Run as non-root user for security
 USER bun
 
