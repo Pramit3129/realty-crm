@@ -9,55 +9,48 @@ interface Price {
      interval: "month" | "year";
      intervalCount?: number;
      currency: string;
+     stripePriceId: string;
 }
 
 interface stripeProducts {
      name: string;
      description: string;
+     stripeProductId: string;
      prices: Price[];
 }
 
-const createSubscriptions = async (products: stripeProducts[]): Promise<void> => {
+const createSubscriptions = async (
+     products: stripeProducts[],
+): Promise<void> => {
      try {
           const subscriptionDocs: { planName: string; planId: string }[] = [];
           const priceDocs: {
                priceId: string;
                price: number;
                currency: string;
-               interval: string;
-               intervalCount: number;
                _productId: string;
           }[] = [];
 
           for (const product of products) {
-               const stripeProduct = await Stripe.products.create({
-                    name: product.name,
-                    description: product.description,
-               });
+               if (!product.stripeProductId) {
+                    throw new Error(`Missing stripeProductId for product: ${product.name}`);
+               }
 
                subscriptionDocs.push({
                     planName: product.name,
-                    planId: stripeProduct.id,
+                    planId: product.stripeProductId,
                });
 
                for (const price of product.prices) {
-                    const stripePrice = await Stripe.prices.create({
-                         product: stripeProduct.id,
-                         unit_amount: price.amountInCents,
-                         currency: price.currency,
-                         recurring: {
-                              interval: price.interval,
-                              interval_count: price.intervalCount ?? 1,
-                         },
-                    });
+                    if (!price.stripePriceId) {
+                         throw new Error(`Missing stripePriceId for a price in product: ${product.name}`);
+                    }
 
                     priceDocs.push({
-                         priceId: stripePrice.id,
+                         priceId: price.stripePriceId,
                          price: price.amountInCents,
                          currency: price.currency,
-                         interval: price.interval,
-                         intervalCount: price.intervalCount ?? 1,
-                         _productId: stripeProduct.id, // link by Stripe product ID
+                         _productId: product.stripeProductId, // link by Stripe product ID
                     });
                }
           }
@@ -67,20 +60,32 @@ const createSubscriptions = async (products: stripeProducts[]): Promise<void> =>
                return;
           }
 
-          const insertedSubscriptions = await Subscription.insertMany(subscriptionDocs);
-          console.log(`Bulk inserted ${insertedSubscriptions.length} subscription(s).`);
-
-          const productIdMap = new Map<string, string>(
-               insertedSubscriptions.map((sub) => [sub.planId, String(sub._id)])
+          const insertedSubscriptions =
+               await Subscription.insertMany(subscriptionDocs);
+          console.log(
+               `Bulk inserted ${insertedSubscriptions.length} subscription(s).`,
           );
 
-          const subscriptionPriceDocs = priceDocs.map(({ _productId, ...rest }) => ({
-               ...rest,
-               subscriptionId: productIdMap.get(_productId),
-          }));
+          const productIdMap = new Map<string, string>(
+               insertedSubscriptions.map((sub) => [
+                    sub.planId,
+                    String(sub._id),
+               ]),
+          );
 
-          const insertedPrices = await SubscriptionPrice.insertMany(subscriptionPriceDocs);
-          console.log(`Bulk inserted ${insertedPrices.length} subscription price(s).`);
+          const subscriptionPriceDocs = priceDocs.map(
+               ({ _productId, ...rest }) => ({
+                    ...rest,
+                    subscriptionId: productIdMap.get(_productId),
+               }),
+          );
+
+          const insertedPrices = await SubscriptionPrice.insertMany(
+               subscriptionPriceDocs,
+          );
+          console.log(
+               `Bulk inserted ${insertedPrices.length} subscription price(s).`,
+          );
      } catch (error) {
           console.error("Error in creating subscriptions:", error);
      }
@@ -88,14 +93,44 @@ const createSubscriptions = async (products: stripeProducts[]): Promise<void> =>
 
 const products: stripeProducts[] = [
      {
-          name: "Pro Subscription of Realty CRM",
-          description: "Pro Subscription of Realty CRM (TIER-1)",
+          name: "CORE CRM",
+          description: "CORE CRM Subscription",
+          stripeProductId: "prod_UCeUyQeQ9Whwg6",
           prices: [
                {
-                    amountInCents: 6500,
+                    stripePriceId: "price_1TEFBbFMnRk4uee2sDep9KIs",
+                    amountInCents: 9900,
                     interval: "month",
                     intervalCount: 1,
-                    currency: "usd",
+                    currency: "cad",
+               },
+          ],
+     },
+     {
+          name: "Core CRM + IDX",
+          description: "Core CRM + IDX Subscription",
+          stripeProductId: "prod_UCeX7nAeFQo2C6",
+          prices: [
+               {
+                    stripePriceId: "price_1TEFESFMnRk4uee2rkUgSRHh",
+                    amountInCents: 14900,
+                    interval: "month",
+                    intervalCount: 1,
+                    currency: "cad",
+               },
+          ],
+     },
+     {
+          name: "Advanced AI CRM",
+          description: "Advanced AI CRM Subscription",
+          stripeProductId: "prod_UCeZkyMF0bULSH",
+          prices: [
+               {
+                    stripePriceId: "price_1TEFGLFMnRk4uee2BIxOHNpq",
+                    amountInCents: 24900,
+                    interval: "month",
+                    intervalCount: 1,
+                    currency: "cad",
                },
           ],
      },
