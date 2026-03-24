@@ -1,5 +1,6 @@
 import stripe from "stripe";
 import { Subscription, FREE_PLAN } from "./subscription.model";
+import { SubscriptionPrice } from "./subscriptionPrice.model";
 import { User } from "../user/user.model";
 import type { Buffer } from "buffer";
 export class PaymentService {
@@ -18,7 +19,11 @@ export class PaymentService {
 
      static async createSessionURL(userId: string, priceId: string) {
           const FRONTEND_URL: string = process.env.FRONTEND_URL!;
-          const Plan = await Subscription.findOne({ priceId });
+          const priceRecord = await SubscriptionPrice.findOne({ priceId }).populate('subscriptionId');
+          if (!priceRecord) {
+               throw new Error("Price not found");
+          }
+          const Plan: any = priceRecord.subscriptionId;
           if (!Plan) {
                throw new Error("Plan not found");
           }
