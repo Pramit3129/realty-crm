@@ -29,7 +29,7 @@ export class EmailTemplateService {
       userId: data.userId,
     });
     if (count >= MAX_TEMPLATES) {
-      throw new Error(`You can only save up to ${MAX_TEMPLATES} templates. Delete one to create a new one.`);
+      throw new Error(`You can only save up to ${MAX_TEMPLATES} templates. Please delete an existing template to create a new one.`);
     }
     return EmailTemplate.create({
       name: data.name,

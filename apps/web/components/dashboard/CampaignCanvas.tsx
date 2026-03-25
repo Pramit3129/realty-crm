@@ -19,7 +19,7 @@ import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone, LayoutTemplate } fr
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import EmailTemplateBuilder, { type EmailTemplateData } from "./EmailTemplateBuilder";
+import EmailTemplateBuilder, { type EmailTemplateData, DEFAULT_TEMPLATE_NAME } from "./EmailTemplateBuilder";
 
 // --- Types ---
 interface CampaignStep {
@@ -524,7 +524,7 @@ function StepEditorModal({
 
   const handleUseTemplate = (html: string, template: EmailTemplateData) => {
     setBody(html);
-    if (!subject.trim() && template.name && template.name !== "Custom Template") {
+    if (!subject.trim() && template.name && template.name !== DEFAULT_TEMPLATE_NAME) {
       setSubject(template.name);
     }
     setShowBuilder(false);

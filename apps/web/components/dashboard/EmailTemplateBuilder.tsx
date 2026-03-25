@@ -23,6 +23,8 @@ import { api } from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export const DEFAULT_TEMPLATE_NAME = "Custom Template";
+
 export interface EmailBlock {
   id: string;
   type: "heading" | "text" | "image" | "button" | "divider" | "spacer";
@@ -78,7 +80,10 @@ function defaultProps(type: EmailBlock["type"]): Record<string, any> {
 }
 
 function generateId() {
-  return Math.random().toString(36).slice(2, 10);
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
 // ─── HTML Generator ───────────────────────────────────────────────────────────
@@ -211,10 +216,12 @@ function PropertiesPanel({
 }) {
   const p = block.props;
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   const handleUpload = useCallback(
     async (file: File) => {
       setUploading(true);
+      setUploadError("");
       try {
         const formData = new FormData();
         formData.append("file", file);
@@ -225,9 +232,11 @@ function PropertiesPanel({
         if (res.ok) {
           const data = await res.json();
           onChange({ ...p, url: data.url });
+        } else {
+          setUploadError("Upload failed. Please try again.");
         }
       } catch {
-        // ignore
+        setUploadError("Network error during upload.");
       } finally {
         setUploading(false);
       }
@@ -364,6 +373,7 @@ function PropertiesPanel({
                 }}
               />
             </label>
+            {uploadError && <p className="mt-1 text-[10px] text-red-400">{uploadError}</p>}
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Alt Text</label>
@@ -518,6 +528,7 @@ function TemplateGalleryModal({
   const [prebuilt, setPrebuilt] = useState<EmailTemplateData[]>([]);
   const [saved, setSaved] = useState<EmailTemplateData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -527,10 +538,14 @@ function TemplateGalleryModal({
           api("/emailTemplate/prebuilt"),
           api(`/emailTemplate/workspace/${workspaceId}`),
         ]);
-        if (pb.ok) setPrebuilt((await pb.json()).data ?? []);
-        if (sv.ok) setSaved((await sv.json()).data ?? []);
+        if (pb.ok) {
+          setPrebuilt((await pb.json()).data ?? []);
+        }
+        if (sv.ok) {
+          setSaved((await sv.json()).data ?? []);
+        }
       } catch {
-        // ignore
+        setLoadError("Failed to load templates. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -606,6 +621,10 @@ function TemplateGalleryModal({
             <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
               Loading templates…
             </div>
+          ) : loadError ? (
+            <div className="flex h-32 items-center justify-center text-sm text-red-400">
+              {loadError}
+            </div>
           ) : (
             <>
               <div>
@@ -663,7 +682,10 @@ function SaveTemplateModal({
   const [error, setError] = useState("");
 
   const handleSave = async () => {
-    if (!name.trim()) { setError("Template name is required"); return; }
+    if (!name.trim()) {
+      setError("Template name is required");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -682,7 +704,10 @@ function SaveTemplateModal({
         });
       }
       const data = await res.json();
-      if (!res.ok) { setError(data.message || "Failed to save"); return; }
+      if (!res.ok) {
+        setError(data.message || "Failed to save");
+        return;
+      }
       onSaved(data.data);
     } catch {
       setError("Network error");
@@ -815,7 +840,7 @@ export default function EmailTemplateBuilder({ workspaceId, initialTemplate, onU
 
   const handleUse = () => {
     const html = blocksToHtml(blocks, backgroundColor);
-    onUse?.(html, { _id: savedTemplateId, name: savedTemplateName ?? "Custom Template", backgroundColor, blocks });
+    onUse?.(html, { _id: savedTemplateId, name: savedTemplateName ?? DEFAULT_TEMPLATE_NAME, backgroundColor, blocks });
   };
 
   return (
