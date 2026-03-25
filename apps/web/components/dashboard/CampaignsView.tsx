@@ -40,6 +40,7 @@ interface Campaign {
 interface CampaignsViewProps {
   workspaceId: string;
   userRole?: string;
+  onCanvasOpenChange?: (isOpen: boolean) => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ const TABLE_COLUMNS = [
 export default function CampaignsView({
   workspaceId,
   userRole = "AGENT",
+  onCanvasOpenChange,
 }: CampaignsViewProps) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
@@ -451,7 +453,10 @@ export default function CampaignsView({
           campaign={selectedCampaign}
           workspaceId={workspaceId}
           onClose={() => setSelectedCampaign(null)}
-          onLaunchEditor={() => setShowCanvasId(selectedCampaign._id)}
+          onLaunchEditor={() => {
+            setShowCanvasId(selectedCampaign._id);
+            onCanvasOpenChange?.(true);
+          }}
         />
       )}
 
@@ -463,7 +468,10 @@ export default function CampaignsView({
             campaignId={selectedCampaign._id}
             campaignName={selectedCampaign.name}
             workspaceId={workspaceId}
-            onClose={() => setShowCanvasId(null)}
+            onClose={() => {
+              setShowCanvasId(null);
+              onCanvasOpenChange?.(false);
+            }}
           />
         )}
     </div>

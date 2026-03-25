@@ -38,8 +38,14 @@ function DashboardContent() {
   const initialView = (searchParams.get("view") as ActiveViewType) || "leads";
   const [activeView, setActiveView] = useState<ActiveViewType>(initialView);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCampaignCanvasOpen, setIsCampaignCanvasOpen] = useState(false);
 
   const activeWorkspace = workspaces.find((w) => w._id === activeWorkspaceId);
+
+  function handleViewChange(view: ActiveViewType) {
+    setActiveView(view);
+    setIsCampaignCanvasOpen(false);
+  }
 
   const refreshWorkspaces = useCallback(
     async (newWorkspaceId?: string) => {
@@ -109,14 +115,14 @@ function DashboardContent() {
       </div>
 
       <div className="flex h-full w-full pt-12 lg:pt-0">
-        {activeView !== "settings" && (
+        {activeView !== "settings" && !isCampaignCanvasOpen && (
           <Sidebar
             workspaces={workspaces}
             activeWorkspaceId={activeWorkspaceId}
             onWorkspaceChange={setActiveWorkspaceId}
             refreshWorkspaces={refreshWorkspaces}
             activeView={activeView}
-            onViewChange={setActiveView}
+            onViewChange={handleViewChange}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
           />
@@ -133,6 +139,10 @@ function DashboardContent() {
         <CampaignsView
           workspaceId={activeWorkspaceId}
           userRole={activeWorkspace?.role || "AGENT"}
+          onCanvasOpenChange={(isOpen) => {
+            setIsCampaignCanvasOpen(isOpen);
+            if (isOpen) setIsSidebarOpen(false);
+          }}
         />
       ) : activeView === "pipeline" ? (
         <PipelineView
