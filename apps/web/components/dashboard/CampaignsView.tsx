@@ -40,6 +40,7 @@ interface Campaign {
 interface CampaignsViewProps {
   workspaceId: string;
   userRole?: string;
+  onCloseSidebar?: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ const TABLE_COLUMNS = [
 export default function CampaignsView({
   workspaceId,
   userRole = "AGENT",
+  onCloseSidebar,
 }: CampaignsViewProps) {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
@@ -464,6 +466,7 @@ export default function CampaignsView({
             campaignName={selectedCampaign.name}
             workspaceId={workspaceId}
             onClose={() => setShowCanvasId(null)}
+            onCloseSidebar={onCloseSidebar}
           />
         )}
     </div>

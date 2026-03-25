@@ -133,6 +133,7 @@ function DashboardContent() {
         <CampaignsView
           workspaceId={activeWorkspaceId}
           userRole={activeWorkspace?.role || "AGENT"}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
         />
       ) : activeView === "pipeline" ? (
         <PipelineView
