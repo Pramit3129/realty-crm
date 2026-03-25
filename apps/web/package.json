@@ -20,6 +20,7 @@
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-email-editor": "^1.7.11",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
@@ -28,6 +29,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-email-editor": "^1.7.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "shadcn": "^3.8.5",

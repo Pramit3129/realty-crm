@@ -14,7 +14,10 @@ import {
   updateCampaignStep,
   getCampaignProgress,
   trackEmailOpen,
-  unsubscribeEmail
+  unsubscribeEmail,
+  getTemplates,
+  createTemplate,
+  deleteTemplate
 } from "./campaign.controller";
 import requireAuth from "../../shared/middleware/requireAuth";
 import requirePro from "../../shared/middleware/requirePro";
@@ -45,5 +48,9 @@ router.get('/:campaignId/steps', getCampaignSteps);
 router.get('/:campaignId/steps/:stepId', getCampaignStep);
 router.get("/:workspaceId", getCampaings);
 router.delete("/:campaignId", deleteCampaing);
+
+router.get("/template/all", getTemplates);
+router.post("/template", createTemplate);
+router.delete("/template/:templateId", deleteTemplate);
 
 export default router;

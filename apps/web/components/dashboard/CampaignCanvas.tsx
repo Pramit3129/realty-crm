@@ -19,6 +19,13 @@ import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import dynamic from "next/dynamic";
+// @ts-ignore
+import type { EditorRef } from "react-email-editor";
+import { INBUILT_TEMPLATES } from "@/lib/inbuilt-templates";
+
+// @ts-ignore
+const EmailEditor = dynamic(() => import("react-email-editor"), { ssr: false }) as any;
 
 // --- Types ---
 interface CampaignStep {
@@ -26,6 +33,7 @@ interface CampaignStep {
   campaignId: string;
   subject: string;
   body: string;
+  design?: any;
   delayDays: number;
   stepOrder: number;
 }
@@ -373,7 +381,7 @@ export default function CampaignCanvas({
   }, [steps, setNodes, setEdges, handleEditStep, handleDeleteStep, handleAddStepClick]);
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col bg-background animate-in slide-in-from-right-8 duration-200">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-background animate-in slide-in-from-right-8 duration-200">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
         <div className="flex items-center gap-2">
@@ -483,7 +491,7 @@ export default function CampaignCanvas({
         <StepEditorModal
           campaignId={campaignId}
           step={editingStep}
-          nextOrder={steps.length + 1}
+          nextOrder={steps.length > 0 ? Math.max(...steps.map(s => s.stepOrder || 0)) + 1 : 1}
           onClose={() => setShowStepModal(false)}
           onSuccess={() => {
             setShowStepModal(false);
@@ -510,70 +518,203 @@ function StepEditorModal({
   onSuccess: () => void;
 }) {
   const [subject, setSubject] = useState(step?.subject || "");
-  const [body, setBody] = useState(step?.body || "");
   const [delayDays, setDelayDays] = useState(step?.delayDays || 0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const emailEditorRef = useRef<EditorRef>(null);
+
+  // Template state
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
   const isEditing = !!step;
 
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await api("/campaign/template/all");
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(data.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const onLoad = () => {
+    if (step && step.design) {
+      emailEditorRef.current?.editor.loadDesign(step.design);
+    }
+  };
+
+  const onReady = () => {
+    // Editor is ready
+  };
+
   const handleSubmit = async () => {
-    if (!subject.trim() || !body.trim()) {
-      setError("Subject and Body are required.");
+    if (!subject.trim()) {
+      setError("Subject is required.");
       return;
     }
     setSubmitting(true);
     setError("");
 
-    const endpoint = isEditing ? `/campaign/step/${step._id}` : `/campaign/step/create`;
-    const method = isEditing ? "PUT" : "POST";
-    const payload = {
-      campaignId,
-      subject,
-      body,
-      delayDays: Number(delayDays),
-      stepOrder: isEditing ? step.stepOrder : nextOrder,
-    };
+    emailEditorRef.current?.editor.exportHtml(async (data: any) => {
+      const { design, html } = data;
+      
+      const endpoint = isEditing ? `/campaign/step/${step._id}` : `/campaign/step/create`;
+      const method = isEditing ? "PUT" : "POST";
+      const payload = {
+        campaignId,
+        subject,
+        body: html || "<div></div>",
+        design,
+        delayDays: Number(delayDays),
+        stepOrder: isEditing ? step.stepOrder : nextOrder,
+      };
 
-    try {
-      const res = await api(endpoint, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      try {
+        const res = await api(endpoint, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
 
-      if (res.ok) {
-        onSuccess();
-      } else {
-        const data = await res.json();
-        setError(data.message || "Failed to save step");
+        if (res.ok) {
+          onSuccess();
+        } else {
+          const resData = await res.json();
+          setError(resData.message || "Failed to save step");
+        }
+      } catch {
+        setError("Network error");
+      } finally {
+        setSubmitting(false);
       }
-    } catch {
-      setError("Network error");
-    } finally {
-      setSubmitting(false);
+    });
+  };
+
+  const handleSaveTemplate = () => {
+    if (!templateName.trim()) {
+      alert("Please enter a template name");
+      return;
+    }
+    
+    emailEditorRef.current?.editor.exportHtml(async (data: any) => {
+      const { design, html } = data;
+      try {
+        const res = await api("/campaign/template", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: templateName, design, html })
+        });
+        if (res.ok) {
+          alert("Template saved successfully!");
+          setShowSaveTemplate(false);
+          setTemplateName("");
+          fetchTemplates();
+        } else {
+          const resData = await res.json();
+          alert(resData.message || "Failed to save template");
+        }
+      } catch (e) {
+        alert("Error saving template");
+      }
+    });
+  };
+
+  const loadTemplate = (design: any) => {
+    if (design) {
+      emailEditorRef.current?.editor.loadDesign(design);
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!selectedTemplateId) return;
+    if (!confirm("Are you sure you want to delete this custom template?")) return;
+    try {
+      const res = await api(`/campaign/template/${selectedTemplateId}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setSelectedTemplateId("");
+        fetchTemplates();
+      } else {
+        alert("Failed to delete template");
+      }
+    } catch (e) {
+      alert("Error deleting template");
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-foreground">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-[90vw] h-[95vh] rounded-xl border border-border bg-card p-6 shadow-2xl flex flex-col">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-foreground">
             {isEditing ? "Edit Action Node" : "Add Action Node"}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground transition hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-4">
+            {(templates.length > 0 || INBUILT_TEMPLATES.length > 0) && (
+              <div className="flex items-center gap-2">
+                <select 
+                  className="h-8 rounded-md border border-border bg-muted/50 px-2 text-xs outline-none"
+                  value={selectedTemplateId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedTemplateId(val);
+                    if (val) {
+                      let t = INBUILT_TEMPLATES.find((temp: any) => temp.id === val);
+                      if (!t) t = templates.find((temp: any) => temp._id === val);
+                      if (t) loadTemplate(t.design);
+                    }
+                  }}
+                >
+                  <option value="">-- Load Template --</option>
+                  <optgroup label="System Templates">
+                    {INBUILT_TEMPLATES.map((t: any) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </optgroup>
+                  {templates.length > 0 && (
+                    <optgroup label="Your Saved Templates">
+                      {templates.map((t: any) => (
+                        <option key={t._id} value={t._id}>{t.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {templates.some((t: any) => t._id === selectedTemplateId) && (
+                  <button
+                    onClick={handleDeleteTemplate}
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-red-500 hover:bg-red-500/10 transition-colors"
+                    title="Delete custom template"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
+            <button
+              onClick={onClose}
+              className="text-muted-foreground transition hover:text-foreground"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pr-1">
-          <div>
+        <div className="flex gap-4 mb-4">
+          <div className="flex-1">
             <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">Subject</label>
             <Input
               value={subject}
@@ -582,17 +723,8 @@ function StepEditorModal({
               className="h-9 border-border bg-muted/50 text-[13px]"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">Email Body</label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Hi {{name}}, ..."
-              className="min-h-[150px] w-full rounded-md border border-border bg-muted/50 p-3 text-[13px] text-foreground placeholder-muted-foreground/40 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">Delay (Days) after previous step</label>
+          <div className="w-[200px]">
+            <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">Delay (Days)</label>
             <Input
               type="number"
               min="0"
@@ -601,16 +733,51 @@ function StepEditorModal({
               className="h-9 border-border bg-muted/50 text-[13px]"
             />
           </div>
-          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+        
+        <div className="flex-1 border border-border rounded-md overflow-hidden relative min-h-0 bg-white flex flex-col">
+           <EmailEditor
+              ref={emailEditorRef}
+              onLoad={onLoad}
+              onReady={onReady}
+              style={{ minHeight: '100%', height: '100%', flex: 1 }}
+              options={{
+                 appearance: {
+                    theme: 'dark' // Can adjust based on your UI theme, but 'dark' or 'light'
+                 }
+              }}
+           />
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-border">
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs h-8">
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={submitting} className="text-xs h-8">
-            {submitting ? "Saving..." : "Save Step"}
-          </Button>
+        {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+
+        <div className="mt-4 flex justify-between gap-3 pt-4 border-t border-border items-center">
+          <div className="flex items-center gap-2">
+            {showSaveTemplate ? (
+              <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Template Name" 
+                  value={templateName} 
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="h-8 w-[200px] text-xs"
+                />
+                <Button size="sm" onClick={handleSaveTemplate} className="h-8 text-xs">Save</Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowSaveTemplate(false)} className="h-8 text-xs">Cancel</Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setShowSaveTemplate(true)} className="h-8 text-xs" disabled={templates.length >= 3}>
+                Save as Template {templates.length >= 3 && "(Max 3 reached)"}
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-xs h-8">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSubmit} disabled={submitting} className="text-xs h-8">
+              {submitting ? "Saving..." : "Save Step"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

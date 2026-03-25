@@ -157,7 +157,7 @@ export const createCampaignStep = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user.id;
-    const { campaignId, subject, body, delayDays, stepOrder } = req.body;
+    const { campaignId, subject, body, design, delayDays, stepOrder } = req.body;
     if (!campaignId || !subject || !body || delayDays == null || stepOrder == null) {
       return res.status(400).json({
         success: false,
@@ -168,6 +168,7 @@ export const createCampaignStep = async (req: Request, res: Response) => {
       campaignId,
       subject,
       body,
+      design,
       delayDays,
       stepOrder,
     };
@@ -353,14 +354,14 @@ export const updateCampaignStep = async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user.id;
     const stepId = req.params.stepId as string;
-    const { subject, body, delayDays } = req.body;
+    const { subject, body, design, delayDays } = req.body;
     if (!stepId || !subject || !body || delayDays == null) {
       return res.status(400).json({
         success: false,
         message: "stepId, subject, body and delayDays are required",
       });
     }
-    const step = await CampaingService.updateCampaignStep(stepId, subject, body, delayDays);
+    const step = await CampaingService.updateCampaignStep(stepId, subject, body, design, delayDays);
     return res.status(200).json({
       success: true,
       message: "Campaign step updated successfully",
@@ -456,5 +457,73 @@ export const unsubscribeEmail = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error unsubscribing lead:", error);
     return res.status(500).send("Internal server error during unsubscribe.");
+  }
+};
+
+export const getTemplates = async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    const templates = await CampaingService.getTemplates(userId);
+    return res.status(200).json({
+      success: true,
+      data: templates,
+    });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch templates",
+    });
+  }
+};
+
+export const createTemplate = async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    const { name, design, html } = req.body;
+    if (!name || !design || !html) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, design, and html are required",
+      });
+    }
+    const template = await CampaingService.createTemplate(userId, name, design, html);
+    return res.status(200).json({
+      success: true,
+      data: template,
+    });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Failed to create template",
+    });
+  }
+};
+
+export const deleteTemplate = async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.id;
+    const templateId = req.params.templateId as string;
+    if (!templateId) {
+      return res.status(400).json({
+        success: false,
+        message: "Template ID is required",
+      });
+    }
+    const template = await CampaingService.deleteTemplate(templateId, userId);
+    return res.status(200).json({
+      success: true,
+      data: template,
+    });
+  } catch (error: any) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete template",
+    });
   }
 };
