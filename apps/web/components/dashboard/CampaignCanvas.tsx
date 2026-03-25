@@ -15,10 +15,11 @@ import {
   Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone } from "lucide-react";
+import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import EmailTemplateBuilder, { type EmailTemplateData } from "./EmailTemplateBuilder";
 
 // --- Types ---
 interface CampaignStep {
@@ -489,6 +490,7 @@ export default function CampaignCanvas({
             setShowStepModal(false);
             fetchSteps();
           }}
+          workspaceId={workspaceId}
         />
       )}
     </div>
@@ -502,20 +504,31 @@ function StepEditorModal({
   nextOrder,
   onClose,
   onSuccess,
+  workspaceId,
 }: {
   campaignId: string;
   step: CampaignStep | null;
   nextOrder: number;
   onClose: () => void;
   onSuccess: () => void;
+  workspaceId: string;
 }) {
   const [subject, setSubject] = useState(step?.subject || "");
   const [body, setBody] = useState(step?.body || "");
   const [delayDays, setDelayDays] = useState(step?.delayDays || 0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showBuilder, setShowBuilder] = useState(false);
 
   const isEditing = !!step;
+
+  const handleUseTemplate = (html: string, template: EmailTemplateData) => {
+    setBody(html);
+    if (!subject.trim() && template.name && template.name !== "Custom Template") {
+      setSubject(template.name);
+    }
+    setShowBuilder(false);
+  };
 
   const handleSubmit = async () => {
     if (!subject.trim() || !body.trim()) {
@@ -557,6 +570,16 @@ function StepEditorModal({
     }
   };
 
+  if (showBuilder) {
+    return (
+      <EmailTemplateBuilder
+        workspaceId={workspaceId}
+        onUse={handleUseTemplate}
+        onClose={() => setShowBuilder(false)}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl flex flex-col max-h-[90vh]">
@@ -582,15 +605,89 @@ function StepEditorModal({
               className="h-9 border-border bg-muted/50 text-[13px]"
             />
           </div>
+
+          {/* Email Body */}
           <div>
-            <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">Email Body</label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Hi {{name}}, ..."
-              className="min-h-[150px] w-full rounded-md border border-border bg-muted/50 p-3 text-[13px] text-foreground placeholder-muted-foreground/40 focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-[13px] font-medium text-muted-foreground">Email Body</label>
+              <button
+                onClick={() => setShowBuilder(true)}
+                className="flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-blue-500/50 hover:bg-blue-500/5 hover:text-blue-500"
+              >
+                <LayoutTemplate className="h-3 w-3" />
+                Template Builder
+              </button>
+            </div>
+
+            {body ? (
+              <div className="rounded-md border border-border bg-muted/30 overflow-hidden">
+                {/* Preview strip */}
+                <div className="border-b border-border px-3 py-1.5 flex items-center justify-between bg-muted/50">
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Preview</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setShowBuilder(true)}
+                      className="text-[10px] text-blue-500 hover:underline flex items-center gap-1"
+                    >
+                      <PenSquare className="h-2.5 w-2.5" />
+                      Edit in Builder
+                    </button>
+                    <span className="text-muted-foreground/40">|</span>
+                    <button
+                      onClick={() => setBody("")}
+                      className="text-[10px] text-red-400 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div
+                  className="pointer-events-none max-h-[160px] overflow-hidden px-3 py-2 text-[11px] [&_*]:max-w-full"
+                  dangerouslySetInnerHTML={{ __html: body }}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-border bg-muted/20 py-8">
+                <LayoutTemplate className="h-8 w-8 text-muted-foreground/30" />
+                <div className="text-center">
+                  <p className="text-[13px] font-medium text-muted-foreground">No email body yet</p>
+                  <p className="text-[11px] text-muted-foreground/60">Use the template builder or paste HTML below</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setShowBuilder(true)}
+                    className="h-7 px-3 text-[11px] bg-blue-600 hover:bg-blue-700 text-white border-0"
+                  >
+                    <LayoutTemplate className="mr-1.5 h-3 w-3" />
+                    Open Builder
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">or</span>
+                  <button
+                    onClick={() => setBody("<p>Write your email here...</p>")}
+                    className="text-[11px] text-muted-foreground underline hover:text-foreground"
+                  >
+                    paste HTML
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Allow direct HTML editing when body is set */}
+            {body && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
+                  Edit raw HTML
+                </summary>
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  className="mt-1.5 min-h-[80px] w-full rounded-md border border-border bg-muted/50 p-2 text-[11px] text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                />
+              </details>
+            )}
           </div>
+
           <div>
             <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">Delay (Days) after previous step</label>
             <Input
