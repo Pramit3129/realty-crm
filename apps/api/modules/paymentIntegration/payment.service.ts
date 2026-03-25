@@ -47,7 +47,7 @@ export class PaymentService {
                     planId: Plan._id.toString(),
                },
                success_url: `${FRONTEND_URL}/success`,
-               cancel_url: `${FRONTEND_URL}/cancel`,
+               cancel_url: `${FRONTEND_URL}/`,
           });
 
           return session.url;
