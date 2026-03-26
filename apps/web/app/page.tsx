@@ -8,7 +8,7 @@ import AuthModal from "@/components/auth/LoginModal";
 import {
   isLoggedIn,
   clearToken,
-  API_BASE_URL,
+  tryRefreshToken,
 } from "@/lib/auth";
 import { api } from "@/lib/api";
 
@@ -26,10 +26,13 @@ export default function Home() {
 
   useEffect(() => {
     async function resolve() {
-      // 1. No token → show login
+      // 1. No local token → attempt refresh before treating as logged out
       if (!isLoggedIn()) {
-        setAuthState("unauthenticated");
-        return;
+        const refreshed = await tryRefreshToken();
+        if (!refreshed) {
+          setAuthState("unauthenticated");
+          return;
+        }
       }
 
       // 2. Has token → check for workspace (api handles refresh)

@@ -447,12 +447,20 @@ export default function CampaignsView({
 
       {/* ── Detail panel (right side) ───────────────────────────────── */}
       {selectedCampaign && (
-        <CampaignDetailPanel
-          campaign={selectedCampaign}
-          workspaceId={workspaceId}
-          onClose={() => setSelectedCampaign(null)}
-          onLaunchEditor={() => setShowCanvasId(selectedCampaign._id)}
-        />
+        <>
+          <button
+            type="button"
+            aria-label="Close campaign details"
+            onClick={() => setSelectedCampaign(null)}
+            className="fixed inset-0 z-30 bg-black/45 backdrop-blur-[1px] xl:hidden"
+          />
+          <CampaignDetailPanel
+            campaign={selectedCampaign}
+            workspaceId={workspaceId}
+            onClose={() => setSelectedCampaign(null)}
+            onLaunchEditor={() => setShowCanvasId(selectedCampaign._id)}
+          />
+        </>
       )}
 
       {/* ── Visual Canvas Overlay ───────────────────────────────────── */}
@@ -487,8 +495,8 @@ function CampaignDetailPanel({
   );
 
   return (
-    <div className="w-[400px] border-l border-white/[0.06] bg-background p-5 flex flex-col h-full animate-in slide-in-from-right-8 duration-200">
-      <div className="flex items-center justify-between mb-4">
+    <aside className="fixed inset-y-0 right-0 z-40 flex h-full w-full max-w-[min(100vw,28rem)] flex-col border-l border-white/[0.06] bg-background p-4 shadow-2xl animate-in slide-in-from-right-8 duration-200 sm:max-w-[24rem] sm:p-5 xl:static xl:z-auto xl:w-[400px] xl:max-w-none xl:shrink-0 xl:shadow-none">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">
           {campaign.name}
         </h2>
@@ -501,10 +509,10 @@ function CampaignDetailPanel({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-white/[0.06] mb-6">
+      <div className="mb-6 flex gap-4 overflow-x-auto border-b border-white/[0.06]">
         <button
           onClick={() => setActiveTab("overview")}
-          className={`pb-2.5 text-xs font-medium transition-colors ${
+          className={`shrink-0 pb-2.5 text-xs font-medium transition-colors ${
             activeTab === "overview"
               ? "border-b-2 border-foreground text-foreground"
               : "text-muted-foreground hover:text-foreground"
@@ -514,7 +522,7 @@ function CampaignDetailPanel({
         </button>
         <button
           onClick={() => setActiveTab("activity")}
-          className={`pb-2.5 text-xs font-medium transition-colors ${
+          className={`shrink-0 pb-2.5 text-xs font-medium transition-colors ${
             activeTab === "activity"
               ? "border-b-2 border-foreground text-foreground"
               : "text-muted-foreground hover:text-foreground"
@@ -524,7 +532,7 @@ function CampaignDetailPanel({
         </button>
         <button
           onClick={() => setActiveTab("leads")}
-          className={`pb-2.5 text-xs font-medium transition-colors ${
+          className={`shrink-0 pb-2.5 text-xs font-medium transition-colors ${
             activeTab === "leads"
               ? "border-b-2 border-foreground text-foreground"
               : "text-muted-foreground hover:text-foreground"
@@ -534,28 +542,28 @@ function CampaignDetailPanel({
         </button>
       </div>
 
-      <div className="space-y-6 flex-1 overflow-y-auto pr-1">
+      <div className="flex-1 space-y-6 overflow-y-auto pr-1">
         {activeTab === "overview" ? (
           <>
             {/* Basic Info */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-xs text-muted-foreground">Status</span>
                 <span className="inline-block rounded-full bg-blue-500/15 px-2.5 py-1 text-[11px] text-blue-400 capitalize">
                   {campaign.status || "draft"}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <span className="text-xs text-muted-foreground">
                   Description
                 </span>
-                <span className="text-sm truncate max-w-[200px] text-right">
+                <span className="max-w-[220px] text-right text-sm break-words">
                   {campaign.description || "No description"}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-xs text-muted-foreground">Created</span>
                 <span className="text-sm">
                   {new Date(campaign.createdAt).toLocaleDateString()}
@@ -569,7 +577,7 @@ function CampaignDetailPanel({
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 Campaign Flow
               </h3>
-              <div className="bg-white/[0.02] border border-white/[0.04] rounded-lg p-6 flex flex-col items-center justify-center text-center gap-3">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-white/[0.04] bg-white/[0.02] p-5 text-center sm:p-6">
                 <Megaphone className="w-8 h-8 text-muted-foreground/50" />
                 <div>
                   <p className="text-sm font-medium">Visual Canvas</p>
@@ -597,7 +605,7 @@ function CampaignDetailPanel({
           />
         )}
       </div>
-    </div>
+    </aside>
   );
 }
 

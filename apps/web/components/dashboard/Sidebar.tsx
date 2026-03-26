@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserCircle, UserPlus, PlusSquare, Megaphone, Settings, Inbox, Menu, X as CloseIcon, Radar, BarChart3 } from "lucide-react";
+import { Users, ChevronDown, LogOut, Sun, Moon, Kanban, StickyNote, CheckSquare, ListTodo, Columns3, UserSquare2, Check, UserPlus, PlusSquare, Megaphone, Settings, Inbox, X as CloseIcon, Radar, BarChart3, Globe, ArrowUpLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
@@ -84,6 +84,7 @@ export default function Sidebar({
   const { theme, toggleTheme } = useTheme();
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const websiteBuilderUrl = process.env.WEBSITE_BUILDER;
 
   const activeWorkspace = workspaces.find((w) => w._id === activeWorkspaceId);
   const displayWorkspaceName = activeWorkspace?.name || "Workspace";
@@ -91,6 +92,12 @@ export default function Sidebar({
   function handleLogout() {
     clearToken();
     router.push("/");
+  }
+
+  function handleWebsiteBuilderClick() {
+    if (!websiteBuilderUrl) return;
+    window.open(websiteBuilderUrl, "_blank", "noopener,noreferrer");
+    if (window.innerWidth < 1024) onClose?.();
   }
 
   return (
@@ -272,10 +279,15 @@ export default function Sidebar({
           <span>Settings</span>
         </button>
         <button
-          className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-white/[0.04] hover:text-sidebar-foreground"
+          onClick={handleWebsiteBuilderClick}
+          disabled={!websiteBuilderUrl}
+          className="group flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-sidebar-foreground disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
         >
-          <StickyNote className="h-4 w-4" />
-          <span>Documentation</span>
+          <Globe className="h-4 w-4" />
+          <span className="flex-1 text-left">Website Builder</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition-colors group-hover:border-white/[0.14] group-hover:bg-white/[0.06] group-hover:text-sidebar-foreground group-disabled:border-white/[0.08] group-disabled:bg-white/[0.02] group-disabled:text-muted-foreground">
+            <ArrowUpLeft className="h-3.5 w-3.5" />
+          </span>
         </button>
       </nav>
 
