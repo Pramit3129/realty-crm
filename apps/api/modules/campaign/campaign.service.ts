@@ -1,5 +1,6 @@
 import { Campaing } from "./models/campaign.model";
 import { CampaignStep } from "./models/campaignStep.model";
+import { Template } from "./models/template.model";
 import { CampaignBatch } from "./models/campaignBatch.model";
 import type { ICampaignCreate, ICampaignUpdate, ICampaignStepCreate, ILead } from "./campaign.types";
 
@@ -59,15 +60,33 @@ export class CampaingService {
   }
 
   static async createCampaignStep(data: ICampaignStepCreate) {
-    const campaignStep = await CampaignStep.create({
-      campaignId: data.campaignId,
-      subject: data.subject,
-      body: data.body,
-      delayDays: data.delayDays,
-      stepOrder: data.stepOrder,
-    });
-    await campaignStep.save();
-    return campaignStep;
+    let retries = 3;
+    let currentOrder = data.stepOrder;
+    
+    while (retries > 0) {
+      try {
+        const campaignStep = await CampaignStep.create({
+          campaignId: data.campaignId,
+          subject: data.subject,
+          body: data.body,
+          design: data.design,
+          delayDays: data.delayDays,
+          stepOrder: currentOrder,
+        });
+        return campaignStep;
+      } catch (error: any) {
+        if (error.code === 11000 && error.keyPattern?.stepOrder) {
+          const lastStep = await CampaignStep.findOne({ campaignId: data.campaignId })
+            .sort({ stepOrder: -1 })
+            .lean();
+          currentOrder = lastStep ? (lastStep.stepOrder || 0) + 1 : 1;
+          retries--;
+          if (retries === 0) throw error;
+        } else {
+          throw error;
+        }
+      }
+    }
   }
 
 
@@ -161,23 +180,49 @@ export class CampaingService {
 
   static async getCampaignSteps(campaignId: string) {
     const campaignStep = await CampaignStep.find({ campaignId })
-      .select("delayDays subject body stepOrder _id")
+      .select("delayDays subject body design stepOrder _id")
       .sort({ stepOrder: 1 })
       .lean();
     return campaignStep;
   }
 
   static async getCampaignStep(stepId: string) {
-    const campaignStep = await CampaignStep.findById(stepId).select("subject body delayDays").lean();
+    const campaignStep = await CampaignStep.findById(stepId).select("subject body design delayDays").lean();
     return campaignStep;
   }
 
-  static async updateCampaignStep(stepId: string, subject: string, body: string, delayDays: number) {
+  static async updateCampaignStep(stepId: string, subject: string, body: string, design: any, delayDays: number) {
     const campaignStep = await CampaignStep.findByIdAndUpdate(
       stepId,
-      { subject, body, delayDays },
+      { subject, body, design, delayDays },
       { new: true },
     );
     return campaignStep;
   }
+  static async getTemplates(userId: string) {
+    return await Template.find({ userId }).sort({ createdAt: -1 }).lean();
+  }
+
+  static async createTemplate(userId: string, name: string, design: any, html: string) {
+    const templateCount = await Template.countDocuments({ userId });
+    if (templateCount >= 3) {
+      throw new Error("Maximum of 3 templates allowed per user.");
+    }
+    const template = await Template.create({
+      userId,
+      name,
+      design,
+      html
+    });
+    return template;
+  }
+
+  static async deleteTemplate(templateId: string, userId: string) {
+    const template = await Template.findOneAndDelete({ _id: templateId, userId });
+    if (!template) {
+      throw new Error("Template not found or unauthorized");
+    }
+    return template;
+  }
 }
+

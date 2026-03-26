@@ -2,7 +2,7 @@
 // Centralised constants and helpers for auth.
 // Uses localStorage so the token survives page refreshes.
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
 // ── Token management ──────────────────────────────────────────────────
 

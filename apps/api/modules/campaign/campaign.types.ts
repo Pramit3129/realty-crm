@@ -41,6 +41,7 @@ export interface ICampaignStepCreate {
     campaignId: string;
     subject: string;
     body: string;
+    design?: any;
     delayDays: number;
     stepOrder: number;
 }

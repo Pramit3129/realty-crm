@@ -18,6 +18,11 @@ const campaignStepSchema = new mongoose.Schema({
     required: true
   },
 
+  design: {
+    type: mongoose.Schema.Types.Mixed,
+    required: false
+  },
+
   delayDays: {
     type: Number,
     default: 0
