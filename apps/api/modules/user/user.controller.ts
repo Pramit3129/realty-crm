@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
+import type { ProUserRequest } from "./user.middleware";
 import { userService } from "./user.service";
 
 export async function getMe(req: Request, res: Response): Promise<void> {
@@ -15,6 +16,16 @@ export async function getMe(req: Request, res: Response): Promise<void> {
         res.json({ user: userService.toResponse(user) });
     } catch (error) {
         console.error("getMe error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export async function getProMe(req: Request, res: Response): Promise<void> {
+    try {
+        const proUser = (req as ProUserRequest).proUser;
+        res.status(200).json({ user: userService.toResponse(proUser) });
+    } catch (error) {
+        console.error("getProMe error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
