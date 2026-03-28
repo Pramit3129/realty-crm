@@ -32,16 +32,15 @@ app.use(
     origin: corsOrigin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
 const limiter = rateLimit({
-  windowMs: 60 * 1000, 
-  limit: 100, 
+  windowMs: 60 * 1000,
+  limit: 100,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { message: "Too many requests, please try again later." }
+  message: { message: "Too many requests, please try again later." },
 });
 app.use(limiter);
 
@@ -76,4 +75,3 @@ app.use("/api/v1/trackers", trackerModule);
 app.use("/api/v1/payment", paymentModule);
 
 export default app;
-

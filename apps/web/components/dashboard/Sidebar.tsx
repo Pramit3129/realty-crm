@@ -84,7 +84,7 @@ export default function Sidebar({
   const { theme, toggleTheme } = useTheme();
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const websiteBuilderUrl = process.env.WEBSITE_BUILDER;
+  const websiteBuilderUrl = process.env.WEBSITE_BUILDER || "http://localhost:3000";
 
   const activeWorkspace = workspaces.find((w) => w._id === activeWorkspaceId);
   const displayWorkspaceName = activeWorkspace?.name || "Workspace";
@@ -95,8 +95,11 @@ export default function Sidebar({
   }
 
   function handleWebsiteBuilderClick() {
-    if (!websiteBuilderUrl) return;
-    window.open(websiteBuilderUrl, "_blank", "noopener,noreferrer");
+    const accessToken = localStorage.getItem("accessToken") || "";
+    const url = new URL(websiteBuilderUrl);
+    url.searchParams.set("token", accessToken);
+
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
     if (window.innerWidth < 1024) onClose?.();
   }
 
@@ -280,7 +283,6 @@ export default function Sidebar({
         </button>
         <button
           onClick={handleWebsiteBuilderClick}
-          disabled={!websiteBuilderUrl}
           className="group flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-sidebar-foreground disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
         >
           <Globe className="h-4 w-4" />
