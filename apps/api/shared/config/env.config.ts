@@ -12,6 +12,14 @@ export const env = {
   // JWT
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET!,
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
+  JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || "30m",
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
+  JWT_INVITE_EXPIRES_IN: process.env.JWT_INVITE_EXPIRES_IN || "7d",
+  REFRESH_COOKIE_MAX_AGE_MS:
+    Number(process.env.REFRESH_COOKIE_MAX_AGE_MS) || 30 * 24 * 60 * 60 * 1000,
+  AUTH_COOKIE_SAME_SITE:
+    process.env.AUTH_COOKIE_SAME_SITE || "lax",
+  AUTH_COOKIE_DOMAIN: process.env.AUTH_COOKIE_DOMAIN,
 
   // Google OAuth
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID!,
