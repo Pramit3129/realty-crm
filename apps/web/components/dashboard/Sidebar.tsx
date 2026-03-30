@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { clearToken } from "@/lib/auth";
+import { clearToken, getToken } from "@/lib/auth";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { CreateWorkspaceModal } from "@/components/dashboard/CreateWorkspaceModal";
 
@@ -95,7 +95,7 @@ export default function Sidebar({
   }
 
   function handleWebsiteBuilderClick() {
-    const accessToken = localStorage.getItem("accessToken") || "";
+    const accessToken = getToken() || "";
     const url = new URL(websiteBuilderUrl);
     url.searchParams.set("token", accessToken);
 

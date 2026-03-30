@@ -12,13 +12,14 @@ export const env = {
   // JWT
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET!,
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET!,
-  JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || "30m",
+  JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN || "1d",
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
   JWT_INVITE_EXPIRES_IN: process.env.JWT_INVITE_EXPIRES_IN || "7d",
   REFRESH_COOKIE_MAX_AGE_MS:
     Number(process.env.REFRESH_COOKIE_MAX_AGE_MS) || 30 * 24 * 60 * 60 * 1000,
   AUTH_COOKIE_SAME_SITE:
-    process.env.AUTH_COOKIE_SAME_SITE || "lax",
+    process.env.AUTH_COOKIE_SAME_SITE ||
+    (process.env.NODE_ENV === "production" ? "none" : "lax"),
   AUTH_COOKIE_DOMAIN: process.env.AUTH_COOKIE_DOMAIN,
 
   // Google OAuth
@@ -43,7 +44,8 @@ export const env = {
   GCP_QUEUE_NAME: process.env.GCP_QUEUE_NAME,
 
   // Gmail Pub/Sub
-  GMAIL_PUBSUB_TOPIC: process.env.GMAIL_PUBSUB_TOPIC || "gmail-push-notifications",
+  GMAIL_PUBSUB_TOPIC:
+    process.env.GMAIL_PUBSUB_TOPIC || "gmail-push-notifications",
   GMAIL_CONCURRENCY_LIMIT: Number(process.env.GMAIL_CONCURRENCY_LIMIT) || 5,
 
   // Backend / Worker

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { API_BASE_URL } from "@/lib/auth";
+import { getTokenPayload } from "@/lib/auth";
 import { api } from "@/lib/api";
 import Papa from "papaparse";
 import {
@@ -235,14 +235,9 @@ export default function LeadsView({
   const [submitting, setSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  let currentUserId = "";
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      currentUserId = payload.id || payload._id || payload.sub;
-    } catch (e) {}
-  }
+  const tokenPayload = getTokenPayload();
+  const currentUserId =
+    tokenPayload?.id || tokenPayload?._id || tokenPayload?.sub || "";
   // ── Fetch leads ───────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
     if (!workspaceId) return;

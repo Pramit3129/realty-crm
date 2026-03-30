@@ -16,7 +16,7 @@ import AnalyticsView from "@/components/dashboard/AnalyticsView";
 import type { ActiveViewType } from "@/components/dashboard/Sidebar";
 import {
   clearToken,
-  API_BASE_URL,
+  ensureValidAccessToken,
 } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { Menu, Loader2 } from "lucide-react";
@@ -80,8 +80,20 @@ function DashboardContent() {
   );
 
   useEffect(() => {
-    refreshWorkspaces();
-  }, [refreshWorkspaces]);
+    async function bootstrapDashboard() {
+      const token = await ensureValidAccessToken();
+      if (!token) {
+        clearToken();
+        router.replace("/");
+        setLoading(false);
+        return;
+      }
+
+      await refreshWorkspaces();
+    }
+
+    bootstrapDashboard();
+  }, [refreshWorkspaces, router]);
 
   if (loading) {
     return (

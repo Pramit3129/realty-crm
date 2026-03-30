@@ -4,10 +4,15 @@ import { registerSchema, loginSchema } from "./auth.types";
 import { authService } from "./auth.service";
 import { emailIntegrationService } from "../emailIntegration/emailIntegration.service";
 
+const refreshCookieSameSite = env.AUTH_COOKIE_SAME_SITE as
+  | "lax"
+  | "strict"
+  | "none";
+
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: env.isProduction,
-  sameSite: env.AUTH_COOKIE_SAME_SITE as "lax" | "strict" | "none",
+  secure: env.isProduction || refreshCookieSameSite === "none",
+  sameSite: refreshCookieSameSite,
   maxAge: env.REFRESH_COOKIE_MAX_AGE_MS,
   path: "/",
   ...(env.AUTH_COOKIE_DOMAIN ? { domain: env.AUTH_COOKIE_DOMAIN } : {}),

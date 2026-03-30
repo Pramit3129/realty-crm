@@ -1,4 +1,10 @@
-import { getToken, tryRefreshToken, clearToken, API_BASE_URL } from "./auth";
+import {
+  getToken,
+  tryRefreshToken,
+  clearToken,
+  API_BASE_URL,
+  ensureValidAccessToken,
+} from "./auth";
 
 /**
  * A wrapper around fetch that:
@@ -12,7 +18,9 @@ export async function api(
   options: RequestInit = {}
 ): Promise<Response> {
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
-  
+
+  await ensureValidAccessToken();
+
   const getHeaders = () => {
     const token = getToken();
     const headers = new Headers(options.headers);

@@ -6,9 +6,8 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardTable from "@/components/dashboard/DashboardTable";
 import AuthModal from "@/components/auth/LoginModal";
 import {
-  isLoggedIn,
   clearToken,
-  tryRefreshToken,
+  ensureValidAccessToken,
 } from "@/lib/auth";
 import { api } from "@/lib/api";
 
@@ -26,13 +25,11 @@ export default function Home() {
 
   useEffect(() => {
     async function resolve() {
-      // 1. No local token → attempt refresh before treating as logged out
-      if (!isLoggedIn()) {
-        const refreshed = await tryRefreshToken();
-        if (!refreshed) {
-          setAuthState("unauthenticated");
-          return;
-        }
+      // 1. Ensure we have a non-expired access token before treating the user as logged out
+      const token = await ensureValidAccessToken();
+      if (!token) {
+        setAuthState("unauthenticated");
+        return;
       }
 
       // 2. Has token → check for workspace (api handles refresh)
