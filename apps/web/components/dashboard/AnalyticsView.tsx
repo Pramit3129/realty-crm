@@ -12,8 +12,6 @@ import {
   Activity,
   MousePointerClick,
   BarChart3,
-  Trophy,
-  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +106,9 @@ const BAR_PALETTE = [
 ];
 
 const RANK_STYLES = [
-  { bg: "bg-amber-400/10", text: "text-amber-500", icon: "🥇" },
-  { bg: "bg-slate-400/10", text: "text-slate-400", icon: "🥈" },
-  { bg: "bg-orange-400/10", text: "text-orange-400", icon: "🥉" },
+  { bg: "bg-amber-400/10", text: "text-amber-500", label: "01" },
+  { bg: "bg-slate-400/10", text: "text-slate-400", label: "02" },
+  { bg: "bg-orange-400/10", text: "text-orange-400", label: "03" },
 ];
 
 // ══════════════════════════════════════════════════════════════════════
@@ -269,12 +267,9 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
           {/* ── Left: Lead Leaderboard ────────────────────────────── */}
           <section className="lg:col-span-3 bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/30">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-3.5 w-3.5 text-amber-500" />
-                <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-                  Lead Engagement
-                </h2>
-              </div>
+              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+                Lead Engagement
+              </h2>
               <span className="text-[10px] font-bold text-muted-foreground/70">
                 {leads.length} leads
               </span>
@@ -283,7 +278,6 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
             <div className="divide-y divide-border/20">
               {leads.length === 0 ? (
                 <div className="px-6 py-12 text-center">
-                  <Trophy className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">
                     No identified leads yet
                   </p>
@@ -324,8 +318,10 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                           <div className="flex items-center gap-1.5 min-w-0">
                             {/* Rank badge for top 3 */}
                             {rank && (
-                              <span className={`text-[11px] shrink-0`}>
-                                {rank.icon}
+                              <span
+                                className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums shrink-0 ${rank.bg} ${rank.text}`}
+                              >
+                                {rank.label}
                               </span>
                             )}
                             {!rank && (
@@ -339,10 +335,12 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                           </div>
 
                           {/* Event count pill */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <Flame className="h-3 w-3 text-orange-400" />
+                          <div className="flex items-center gap-1.5 shrink-0 rounded-full bg-muted px-2 py-1">
                             <span className="text-[11px] font-black text-foreground tabular-nums">
                               {lead.totalEvents}
+                            </span>
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              events
                             </span>
                           </div>
                         </div>
@@ -362,12 +360,12 @@ export default function AnalyticsView({ workspaceId }: AnalyticsViewProps) {
                           <div className="flex items-center gap-3 mb-2">
                             {lead.phone && (
                               <span className="text-[10px] text-muted-foreground/70">
-                                📞 {lead.phone}
+                                Phone: {lead.phone}
                               </span>
                             )}
                             {lead.city && (
                               <span className="text-[10px] text-muted-foreground/70">
-                                📍 {lead.city}
+                                City: {lead.city}
                               </span>
                             )}
                           </div>
