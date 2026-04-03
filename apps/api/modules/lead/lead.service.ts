@@ -169,13 +169,46 @@ export class LeadService {
   }
 
   static async getAllEmails(realtorId: string) {
-    const emails = await EmailHistory.find({ realtorId })
-      .populate("leadId", "name email")
-      .sort({ receivedAt: -1 })
-      .limit(50)
-      .lean();
+    const [emails, communications] = await Promise.all([
+      EmailHistory.find({ realtorId })
+        .populate("leadId", "name email")
+        .sort({ receivedAt: -1 })
+        .limit(50)
+        .lean(),
+      Communication.find({ realtorId, type: "EMAIL" })
+        .populate("leadId", "name email")
+        .sort({ sentAt: -1 })
+        .limit(50)
+        .lean(),
+    ]);
 
-    return emails;
+    const emailHistoryWithSource = emails.map((e) => ({
+      ...e,
+      source: "incoming" as const,
+      timestamp: e.receivedAt,
+    }));
+
+    const communicationsWithSource = communications.map((c) => ({
+      _id: c._id,
+      leadId: c.leadId,
+      realtorId: c.realtorId,
+      subject: c.subject,
+      body: c.body,
+      senderEmail: null,
+      messageId: null,
+      receivedAt: c.sentAt,
+      source: "outgoing" as const,
+      timestamp: c.sentAt,
+    }));
+
+    const allEmails = [...emailHistoryWithSource, ...communicationsWithSource]
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp!).getTime() - new Date(a.timestamp!).getTime(),
+      )
+      .slice(0, 50);
+
+    return allEmails;
   }
 
   static async updateLead(
