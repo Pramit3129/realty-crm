@@ -132,7 +132,6 @@ export async function receiveWebhook(
   req: Request,
   res: Response,
 ): Promise<void> {
-  console.log("Webhook received bitch")
   try {
     
     // 1. Verify Pub/Sub JWT bearer token
