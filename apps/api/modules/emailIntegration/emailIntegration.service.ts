@@ -107,7 +107,7 @@ class EmailIntegrationService {
         const watchResponse = await gmail.users.watch({
           userId: "me",
           requestBody: {
-            topicName: `projects/${projectId}/topics/${topicName}`,
+            topicName: topicName,
             labelIds: ["INBOX"],
           },
         });
