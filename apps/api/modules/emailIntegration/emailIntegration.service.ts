@@ -112,6 +112,8 @@ class EmailIntegrationService {
           },
         });
 
+        console.log(watchResponse)
+
         const expiration = watchResponse.data.expiration
           ? new Date(Number(watchResponse.data.expiration))
           : undefined;
