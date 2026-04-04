@@ -102,6 +102,7 @@ class EmailIntegrationService {
       const topicName = env.GMAIL_PUBSUB_TOPIC;
 
       if (projectId && topicName) {
+        console.log(topicName)
         const gmail = google.gmail({ version: "v1", auth: oauth2Client });
         const watchResponse = await gmail.users.watch({
           userId: "me",
