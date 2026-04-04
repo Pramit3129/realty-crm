@@ -49,14 +49,6 @@ class EmailIntegrationService {
     tokens: any,
   ): Promise<void> {
     const oauth2Client = this.getOAuthClient();
-    console.log("Creating/updating email integration for user", {
-      userId,
-      token: tokens,
-    });
-    console.log(
-      "oauth2Client credentials before setting tokens",
-      oauth2Client.credentials,
-    );
     oauth2Client.setCredentials(tokens);
 
     const oauth2 = google.oauth2({
@@ -112,7 +104,7 @@ class EmailIntegrationService {
           },
         });
 
-        console.log(watchResponse)
+
 
         const expiration = watchResponse.data.expiration
           ? new Date(Number(watchResponse.data.expiration))
