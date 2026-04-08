@@ -56,6 +56,10 @@ export const env = {
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   EMAIL_FROM: process.env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
 
+  // Twilio
+  TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
+  TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
+
   get isProduction() {
     return this.NODE_ENV === "production";
   },
