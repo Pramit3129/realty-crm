@@ -14,6 +14,8 @@ export interface ILead {
     campaignId?: Types.ObjectId;
     isUnsubscribed?: boolean;
     unsubscribedAt?: Date;
+    isMessageUnsubscribed?: boolean;
+    messageUnsubscribedAt?: Date;
 }
 
 export interface ILeadCreate {

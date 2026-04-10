@@ -53,6 +53,13 @@ const leadSchema = new mongoose.Schema<ILead>({
     },
     unsubscribedAt: {
         type: Date
+    },
+    isMessageUnsubscribed: {
+        type: Boolean,
+        default: false
+    },
+    messageUnsubscribedAt: {
+        type: Date
     }
 }, {
     timestamps: true,
