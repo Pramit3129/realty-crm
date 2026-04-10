@@ -2,8 +2,7 @@ import { SMS_Service } from "./sms.service";
 import type { Request, Response } from "express";
 import { Lead } from "../lead/lead.model";
 import type { AuthenticatedRequest, AuthenticatedUser } from "../../shared/middleware/requireAuth";
-import { SMSCampaign } from "./models/smsCampaing.model";
-import { CampaignEnrollment } from "./models/smsCampaingEnrollment.model";
+
 
 
 // export const sendSMS = async (req: Request, res: Response) => {
