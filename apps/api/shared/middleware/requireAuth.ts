@@ -9,6 +9,7 @@ export interface AuthenticatedUser {
     name: string;
     role: string;
     stripeCustomerId?: string;
+    hasSMSCampaignEnabled?: boolean;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -57,6 +58,7 @@ async function requireAuth(
             name: user.name,
             role: user.role,
             stripeCustomerId: user.stripeCustomerId,
+            hasSMSCampaignEnabled: user.hasSMSCampaignEnabled ?? false,
         };
 
         next();

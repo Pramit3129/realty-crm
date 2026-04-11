@@ -174,6 +174,21 @@ export class TrackerService {
       { upsert: true, new: true }
     );
 
+    // 5.5 Auto-assign default SMS drip campaign for NEW leads
+    if (!existingLead) {
+      try {
+        const realtorUser = await User.findById(keyDoc.user).select('hasSMSCampaignEnabled').lean();
+        if (realtorUser?.hasSMSCampaignEnabled) {
+          const { SMS_Service } = await import("../sms/services/sms.service");
+          SMS_Service.assignCampaign(lead._id.toString(), 0, 'default').catch((err) => {
+            console.error('[TrackerService] Auto SMS campaign assignment failed:', err.message);
+          });
+        }
+      } catch (err: any) {
+        console.error('[TrackerService] SMS campaign check failed:', err.message);
+      }
+    }
+
     // 3. Link visitor → lead
     const oldVisitor = await Visitor.findOne({ visitorId, workspaceId: keyDoc.workspace as any });
     

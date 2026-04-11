@@ -18,4 +18,5 @@ export const updateUserSchema = z.object({
     brandLogoUrl: z.string().url().optional().or(z.literal("")),
     brokerageLogoUrl: z.string().url().optional().or(z.literal("")),
     brokerageName: z.string().optional(),
+    hasSMSCampaignEnabled: z.boolean().optional(),
 });

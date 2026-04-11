@@ -8,9 +8,10 @@ import { ActivityService } from "../activity/activity.service";
 import { ActivityType } from "../activity/activity.types";
 import { EmailHistory } from "../emailIntegration/emailHistory.model";
 import { Communication } from "../communication/communication.model";
+import { SMS_Service } from "../sms/services/sms.service";
 
 export class LeadService {
-  static async createLead(leadData: ILeadCreate) {
+  static async createLead(leadData: ILeadCreate, hasSMSCampaignEnabled = false) {
     const checkWorkspace = await Membership.findOne({
       workspace: leadData.workspaceId,
       user: leadData.realtorId,
@@ -57,6 +58,13 @@ export class LeadService {
       type: ActivityType.LEAD_CREATED,
       content: `Lead created: ${savedLead.name}`,
     });
+
+    // Auto-assign default SMS drip campaign if user has it enabled
+    if (hasSMSCampaignEnabled) {
+      SMS_Service.assignCampaign(savedLead._id.toString(), 0, 'default').catch((err) => {
+        console.error('[LeadService] Auto SMS campaign assignment failed:', err.message);
+      });
+    }
 
     return savedLead;
   }
@@ -270,6 +278,7 @@ export class LeadService {
     workspaceId: string,
     pipelineId?: string,
     campaignId?: string,
+    hasSMSCampaignEnabled = false,
   ) {
     const checkWorkspace = await Membership.findOne({
       workspace: workspaceId,
@@ -323,6 +332,15 @@ export class LeadService {
     }
 
     const insertedLeads = await Lead.insertMany(newLeads);
+
+    // Auto-assign default SMS drip campaign to all new leads if user has it enabled
+    if (hasSMSCampaignEnabled && insertedLeads.length > 0) {
+      const leadIds = insertedLeads.map((l: any) => l._id.toString());
+      SMS_Service.assignCampaigns(leadIds, 0, 'default').catch((err) => {
+        console.error('[LeadService] Auto SMS campaign bulk assignment failed:', err.message);
+      });
+    }
+
     return insertedLeads;
   }
 

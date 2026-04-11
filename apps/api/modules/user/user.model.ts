@@ -59,6 +59,10 @@ const userSchema = new Schema<IUser>(
                type: Boolean,
                default: false,
           },
+          hasSMSCampaignEnabled: {
+               type: Boolean,
+               default: false,
+          },
      },
      { timestamps: true },
 );

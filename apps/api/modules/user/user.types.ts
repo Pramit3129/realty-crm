@@ -25,6 +25,7 @@ export interface IUser extends Document {
     stripeCustomerId?: string;
     isSubscribed?: boolean;
     onboardingComplete?: boolean;
+    hasSMSCampaignEnabled?: boolean;
     avatarUrl?: string;
     website?: string;
     createdAt: Date;
@@ -55,5 +56,6 @@ export interface UserResponse {
     subscriptionPlan?: any;
     isSubscribed?: boolean;
     stripeCustomerId?: string;
+    hasSMSCampaignEnabled?: boolean;
     website?: string;
 }

@@ -9,7 +9,8 @@ export async function createLead(req: Request, res: Response) {
         const authReq = req as AuthenticatedRequest;
         const { name, email, phone, source, city, workspaceId, pipelineId, stageId, type } = authReq.body;
         const realtorId = authReq.user.id;
-        const lead = await LeadService.createLead({ name, email, phone, source, city, realtorId, workspaceId, pipelineId, stageId, type });
+        const hasSMSCampaignEnabled = authReq.user.hasSMSCampaignEnabled ?? false;
+        const lead = await LeadService.createLead({ name, email, phone, source, city, realtorId, workspaceId, pipelineId, stageId, type }, hasSMSCampaignEnabled);
         res.status(201).json({ lead });
     } catch (error: any) {
         res.status(400).json({ message: error.message || "Failed to create lead" });
@@ -110,7 +111,8 @@ export async function addLeads(req: Request, res: Response) {
     try {
         const authReq = req as AuthenticatedRequest;
         const { leads, workspaceId, pipelineId, campaignId } = req.body;
-        const insertedLeads = await LeadService.addLeads(leads, authReq.user.id, workspaceId, pipelineId, campaignId);
+        const hasSMSCampaignEnabled = authReq.user.hasSMSCampaignEnabled ?? false;
+        const insertedLeads = await LeadService.addLeads(leads, authReq.user.id, workspaceId, pipelineId, campaignId, hasSMSCampaignEnabled);
         res.status(201).json({ leads: insertedLeads });
     } catch (error: any) {
         res.status(400).json({ message: error.message || "Failed to add leads" });
