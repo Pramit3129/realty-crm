@@ -42,6 +42,7 @@ export const env = {
   GCP_PROJECT_ID: process.env.GCP_PROJECT_ID,
   GCP_REGION: process.env.GCP_REGION,
   GCP_QUEUE_NAME: process.env.GCP_QUEUE_NAME,
+  GCP_SMS_QUEUE_NAME: process.env.GCP_SMS_QUEUE_NAME,
 
   // Gmail Pub/Sub
   GMAIL_PUBSUB_TOPIC:
@@ -55,6 +56,10 @@ export const env = {
   // Email (Resend)
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   EMAIL_FROM: process.env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
+
+  // Twilio
+  TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
+  TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
 
   get isProduction() {
     return this.NODE_ENV === "production";
