@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { env } from "../../shared/config/env.config";
 import { Lead } from "../lead/lead.model";
 import type { AuthenticatedRequest, AuthenticatedUser } from "../../shared/middleware/requireAuth";
+import twilio from 'twilio';
 
 
 export async function onboardUser(req: Request, res: Response) {
@@ -375,6 +376,16 @@ export async function getLeadMessages(req: Request, res: Response) {
 export async function inboundWebhook(req: Request, res: Response) {
     console.log("[SMS Controller] Inbound Webhook:", req.body);
     
+    // Twilio Security Validation
+    const twilioSignature = req.headers['x-twilio-signature'] as string;
+    const url = `${env.APP_URL}${req.originalUrl}`;
+    const isValid = twilio.validateRequest(env.TWILIO_AUTH_TOKEN || "", twilioSignature, url, req.body);
+    
+    if (!isValid) {
+        console.error("[SMS Controller] Invalid Twilio Signature");
+        return res.status(403).send("Forbidden");
+    }
+
     // Return immediately to prevent Twilio timeout retries
     res.type('text/xml').send('<Response></Response>');
 
@@ -387,6 +398,16 @@ export async function inboundWebhook(req: Request, res: Response) {
 export async function statusWebhook(req: Request, res: Response) {
     console.log("[SMS Controller] Status Webhook:", req.body);
     
+    // Twilio Security Validation
+    const twilioSignature = req.headers['x-twilio-signature'] as string;
+    const url = `${env.APP_URL}${req.originalUrl}`;
+    const isValid = twilio.validateRequest(env.TWILIO_AUTH_TOKEN || "", twilioSignature, url, req.body);
+    
+    if (!isValid) {
+        console.error("[SMS Controller] Invalid Twilio Signature");
+        return res.status(403).send("Forbidden");
+    }
+
     // Return immediately to prevent Twilio timeout retries
     res.sendStatus(200);
 
