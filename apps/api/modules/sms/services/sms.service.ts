@@ -53,7 +53,8 @@ export class SMS_Service {
         const bought = await this.client.incomingPhoneNumbers.create({
             phoneNumber: num.phoneNumber,
             accountSid: sub.sid,
-            smsUrl: `${APP_URL}/api/v1/sms/webhook/inbound`
+            smsUrl: `${APP_URL}/api/v1/sms/webhook/inbound`,
+            statusCallback: `${APP_URL}/api/v1/sms/webhook/status`
         });
 
         await SMSNumber.create({ userId: user._id, number: bought.phoneNumber, accountSid: sub.sid });
