@@ -346,26 +346,52 @@ export async function smsWorker(req: Request, res: Response) {
     }
 }
 
+// ── Lead Messages ─────────────────────────────────────────────────────
+
+export async function getLeadMessages(req: Request, res: Response) {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user._id;
+        const leadId = req.params.leadId as string;
+
+        const messages = await SMS_Service.getLeadMessages(leadId, userId);
+
+        return res.status(200).json({
+            success: true,
+            message: "Lead messages fetched successfully",
+            data: messages,
+        });
+    } catch (error: any) {
+        console.error("[SMS Controller] getLeadMessages error:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to fetch lead messages",
+        });
+    }
+}
+
 // ── Webhooks ──────────────────────────────────────────────────────────
 
 export async function inboundWebhook(req: Request, res: Response) {
     console.log("[SMS Controller] Inbound Webhook:", req.body);
-    try {
-        await SMS_Service.processInboundWebhook(req.body);
-        res.type('text/xml').send('<Response></Response>');
-    } catch (error) {
-        console.error("[SMS Controller] Inbound Webhook Error:", error);
-        res.type('text/xml').send('<Response></Response>');
-    }
+    
+    // Return immediately to prevent Twilio timeout retries
+    res.type('text/xml').send('<Response></Response>');
+
+    // Process asynchronously in the background
+    SMS_Service.processInboundWebhook(req.body).catch(error => {
+        console.error("[SMS Controller] Async Inbound Webhook Error:", error);
+    });
 }
 
 export async function statusWebhook(req: Request, res: Response) {
     console.log("[SMS Controller] Status Webhook:", req.body);
-    try {
-        await SMS_Service.processStatusWebhook(req.body);
-        res.sendStatus(200);
-    } catch (error) {
-        console.error("[SMS Controller] Status Webhook Error:", error);
-        res.sendStatus(500);
-    }
+    
+    // Return immediately to prevent Twilio timeout retries
+    res.sendStatus(200);
+
+    // Process asynchronously in the background
+    SMS_Service.processStatusWebhook(req.body).catch(error => {
+        console.error("[SMS Controller] Async Status Webhook Error:", error);
+    });
 }

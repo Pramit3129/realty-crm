@@ -400,7 +400,17 @@ export class SMS_Service {
         // 4. Dispatch actual SMS message
         // TS Typings strictly check strings to prevent TS2345
         if (leadPhone && fromNumber) {
-            await this.sendSMS(leadPhone, fromNumber, step.message);
+            const twilioResponse = await this.sendSMS(leadPhone, fromNumber, step.message);
+            
+            await SMSMessage.create({
+                leadId: unifiedData.lead._id,
+                userId: unifiedData.phoneLine.userId,
+                direction: 'outbound',
+                body: step.message,
+                fromNumber: fromNumber,
+                sid: twilioResponse.sid,
+                deliveryStatus: twilioResponse.status || 'queued'
+            });
         }
 
         // 5. Compute and inline the next step's database assignments
@@ -439,6 +449,13 @@ export class SMS_Service {
         }
 
         return { message: "Task processed successfully." };
+    }
+
+    // ── Lead Messages ───────────────────────────────────────────────────
+
+    static async getLeadMessages(leadId: string, userId: string) {
+        const messages = await SMSMessage.find({ leadId, userId }).sort({ createdAt: 1 }).lean();
+        return messages;
     }
 
     // ── Webhooks ────────────────────────────────────────────────────────

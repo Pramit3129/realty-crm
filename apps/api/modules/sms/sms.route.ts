@@ -24,6 +24,7 @@ import {
     smsWorker,
     inboundWebhook,
     statusWebhook,
+    getLeadMessages,
 } from "./sms.controller";
 import requirePro from "../../shared/middleware/requirePro";
 
@@ -51,6 +52,9 @@ router.use(requirePro);
 router.post("/onboard", onboardUser);
 router.post("/assign", assignCampaing);
 router.post("/assign-bulk", assignCampaings);
+
+// ── Lead Messages ────────────────────────────────────────────────────
+router.get("/lead/:leadId/messages", getLeadMessages);
 
 // ── Campaign CRUD ────────────────────────────────────────────────────
 router.post(
