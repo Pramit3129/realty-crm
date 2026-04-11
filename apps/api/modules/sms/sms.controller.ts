@@ -2,6 +2,8 @@ import { SMS_Service } from "./services/sms.service";
 import type { Request, Response } from "express";
 import { env } from "../../shared/config/env.config";
 import { Lead } from "../lead/lead.model";
+import { User } from "../user/user.model";
+import { SMSNumber } from "./models/smsNumber.model";
 import type { AuthenticatedRequest, AuthenticatedUser } from "../../shared/middleware/requireAuth";
 import twilio from 'twilio';
 
@@ -371,6 +373,66 @@ export async function getLeadMessages(req: Request, res: Response) {
     }
 }
 
+// ── SMS Settings ──────────────────────────────────────────────────────
+
+export async function getSmsStatus(req: Request, res: Response) {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        
+        const isEnabled = await User.exists({ 
+            _id: authReq.user._id, 
+            hasSMSCampaignEnabled: true 
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                hasSMSCampaignEnabled: !!isEnabled
+            }
+        });
+    } catch (error: any) {
+        console.error("[SMS Controller] getSmsStatus error:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch SMS settings" });
+    }
+}
+
+export async function toggleSmsCampaignStatus(req: Request, res: Response) {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const { hasSMSCampaignEnabled } = req.body;
+
+        if (typeof hasSMSCampaignEnabled !== "boolean") {
+            return res.status(400).json({ success: false, message: "hasSMSCampaignEnabled must be a boolean" });
+        }
+
+        if (hasSMSCampaignEnabled) {
+            const hasPhoneRecord = await SMSNumber.exists({ userId: authReq.user._id });
+            if (!hasPhoneRecord) {
+                return res.status(400).json({
+                    success: false,
+                    message: "You must complete SMS onboarding and acquire a phone number before enabling SMS campaigns."
+                });
+            }
+        }
+
+        await User.updateOne(
+            { _id: authReq.user._id },
+            { $set: { hasSMSCampaignEnabled } }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: `SMS Campaign is now ${hasSMSCampaignEnabled ? "enabled" : "disabled"}`,
+            data: {
+                hasSMSCampaignEnabled
+            }
+        });
+    } catch (error: any) {
+        console.error("[SMS Controller] toggleSmsCampaignStatus error:", error);
+        return res.status(500).json({ success: false, message: "Failed to toggle SMS campaign status" });
+    }
+}
+
 // ── Webhooks ──────────────────────────────────────────────────────────
 
 export async function inboundWebhook(req: Request, res: Response) {
@@ -408,10 +470,8 @@ export async function statusWebhook(req: Request, res: Response) {
         return res.status(403).send("Forbidden");
     }
 
-    // Return immediately to prevent Twilio timeout retries
     res.sendStatus(200);
 
-    // Process asynchronously in the background
     SMS_Service.processStatusWebhook(req.body).catch(error => {
         console.error("[SMS Controller] Async Status Webhook Error:", error);
     });

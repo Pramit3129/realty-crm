@@ -25,6 +25,8 @@ import {
     inboundWebhook,
     statusWebhook,
     getLeadMessages,
+    getSmsStatus,
+    toggleSmsCampaignStatus,
 } from "./sms.controller";
 import requirePro from "../../shared/middleware/requirePro";
 
@@ -48,8 +50,12 @@ router.post("/webhook/status", statusWebhook);
 router.use(requireAuth);
 router.use(requirePro);
 
-// ── Onboarding & Enrollment ──────────────────────────────────────────
+// ── Onboarding & Setup ───────────────────────────────────────────────
 router.post("/onboard", onboardUser);
+router.get("/status", getSmsStatus);
+router.put("/status/toggle", toggleSmsCampaignStatus);
+
+// ── Enrollment ───────────────────────────────────────────────────────
 router.post("/assign", assignCampaing);
 router.post("/assign-bulk", assignCampaings);
 
