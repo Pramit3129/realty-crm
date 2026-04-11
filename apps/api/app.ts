@@ -22,6 +22,7 @@ import activityModule from "./modules/activity/activity.module";
 import uploadModule from "./modules/upload/upload.module";
 import trackerModule from "./modules/trackers/tracker.module";
 import paymentModule from "./modules/paymentIntegration/payment.module";
+import smsModule from "./modules/sms/sms.module";
 
 const app = express();
 
@@ -73,5 +74,6 @@ app.use("/api/v1/upload", uploadModule);
 
 app.use("/api/v1/trackers", trackerModule);
 app.use("/api/v1/payment", paymentModule);
+app.use("/api/v1/sms", smsModule);
 
 export default app;
