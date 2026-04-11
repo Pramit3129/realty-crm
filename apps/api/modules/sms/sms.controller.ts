@@ -345,3 +345,27 @@ export async function smsWorker(req: Request, res: Response) {
         });
     }
 }
+
+// ── Webhooks ──────────────────────────────────────────────────────────
+
+export async function inboundWebhook(req: Request, res: Response) {
+    console.log("[SMS Controller] Inbound Webhook:", req.body);
+    try {
+        await SMS_Service.processInboundWebhook(req.body);
+        res.type('text/xml').send('<Response></Response>');
+    } catch (error) {
+        console.error("[SMS Controller] Inbound Webhook Error:", error);
+        res.type('text/xml').send('<Response></Response>');
+    }
+}
+
+export async function statusWebhook(req: Request, res: Response) {
+    console.log("[SMS Controller] Status Webhook:", req.body);
+    try {
+        await SMS_Service.processStatusWebhook(req.body);
+        res.sendStatus(200);
+    } catch (error) {
+        console.error("[SMS Controller] Status Webhook Error:", error);
+        res.sendStatus(500);
+    }
+}

@@ -5,6 +5,7 @@ import type { Istep, ICampaignEnrollment, ISmsCampaign } from '../sms.types';
 import { SMSNumber } from '../models/smsNumber.model';
 import { SMSCampaign } from '../models/smsCampaing.model';
 import { CampaignEnrollment } from '../models/smsCampaingEnrollment.model';
+import { SMSMessage } from '../models/smsMessage.model';
 import { SMS_GCP_Service } from './sms.gcp.service';
 const APP_URL = env.APP_URL;
 
@@ -438,5 +439,74 @@ export class SMS_Service {
         }
 
         return { message: "Task processed successfully." };
+    }
+
+    // ── Webhooks ────────────────────────────────────────────────────────
+    
+    static async processInboundWebhook(data: { From: string; To: string; Body: string; SmsSid: string }) {
+        const { From, To, Body, SmsSid } = data;
+        
+        try {
+            const phoneLine = await SMSNumber.findOne({ number: To });
+            if (!phoneLine) return { success: false, message: "Phone line not found" };
+
+            const LeadModel = mongoose.model("Lead");
+            const lead: any = await LeadModel.findOne({ phone: From, userId: phoneLine.userId });
+
+            if (lead) {
+                if (Body.trim().toUpperCase() === 'STOP') {
+                    // Legal Compliance: Unsubscribe
+                    await LeadModel.findByIdAndUpdate(lead._id, { isMessageUnsubscribed: true, messageUnsubscribedAt: new Date() });
+                    await CampaignEnrollment.updateMany(
+                        { leadId: lead._id, status: { $in: ['AWAITING_CRON', 'QUEUED_IN_TASKS'] } },
+                        { status: 'STOPPED' }
+                    );
+                } else {
+                    // Auto-Pause: Human engagement detected
+                    await CampaignEnrollment.updateMany(
+                        { leadId: lead._id, status: { $in: ['AWAITING_CRON', 'QUEUED_IN_TASKS'] } },
+                        { status: 'PAUSED' }
+                    );
+                }
+            }
+
+            // Log the inbound message
+            await SMSMessage.create({
+                leadId: lead?._id || undefined,
+                userId: phoneLine.userId,
+                direction: 'inbound',
+                body: Body,
+                fromNumber: From,
+                sid: SmsSid
+            });
+
+            return { success: true };
+        } catch (err) {
+            console.error("[SMS_Service] Inbound Error:", err);
+            throw err;
+        }
+    }
+
+    static async processStatusWebhook(data: { MessageSid: string; MessageStatus: string; ErrorCode?: string }) {
+        const { MessageSid, MessageStatus, ErrorCode } = data;
+
+        try {
+            await SMSMessage.findOneAndUpdate(
+                { sid: MessageSid },
+                { 
+                    deliveryStatus: MessageStatus,
+                    errorCode: ErrorCode || null 
+                }
+            );
+
+            if (MessageStatus === 'failed' || MessageStatus === 'undelivered') {
+                console.log(`[SMS_Service] Message ${MessageSid} failed with code ${ErrorCode}`);
+            }
+
+            return { success: true };
+        } catch (err) {
+            console.error("[SMS_Service] Status Webhook Error:", err);
+            throw err;
+        }
     }
 }

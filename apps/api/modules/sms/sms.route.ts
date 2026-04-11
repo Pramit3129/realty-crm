@@ -22,6 +22,8 @@ import {
     updateStep,
     deleteStep,
     smsWorker,
+    inboundWebhook,
+    statusWebhook,
 } from "./sms.controller";
 import requirePro from "../../shared/middleware/requirePro";
 
@@ -35,6 +37,11 @@ router.get("/health", (_req, res) => {
 // ── Worker Endpoint ───────────────────────────────────────────────────
 // This is protected via internal secret validation in the controller
 router.post("/worker/send", smsWorker);
+
+// ── Webhooks ──────────────────────────────────────────────────────────
+// These handle incoming POST requests from Twilio
+router.post("/webhook/inbound", inboundWebhook);
+router.post("/webhook/status", statusWebhook);
 
 // ── All routes below require authentication ──────────────────────────
 router.use(requireAuth);

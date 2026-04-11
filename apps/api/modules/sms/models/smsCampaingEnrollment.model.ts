@@ -7,7 +7,7 @@ const campaignEnrollmentSchema = new mongoose.Schema({
   nextSmsTime: { type: Date },
   status: { 
     type: String, 
-    enum: ['AWAITING_CRON', 'QUEUED_IN_TASKS', 'COMPLETED', 'STOPPED'], 
+    enum: ['AWAITING_CRON', 'QUEUED_IN_TASKS', 'COMPLETED', 'STOPPED', 'PAUSED'], 
     default: 'AWAITING_CRON' 
   }
 }, { timestamps: true });
