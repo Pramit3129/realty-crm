@@ -438,10 +438,15 @@ export async function toggleSmsCampaignStatus(req: Request, res: Response) {
 export async function inboundWebhook(req: Request, res: Response) {
     console.log("[SMS Controller] Inbound Webhook:", req.body);
     
-    // Twilio Security Validation
+    // Twilio Security Validation (Subaccount aware)
     const twilioSignature = req.headers['x-twilio-signature'] as string;
     const url = `${env.APP_URL}${req.originalUrl}`;
-    const isValid = twilio.validateRequest(env.TWILIO_AUTH_TOKEN || "", twilioSignature, url, req.body);
+    
+    // Fetch the correct authToken for this specific phone number
+    const phoneRecord = await SMSNumber.findOne({ number: req.body.To }).lean();
+    const authToken = phoneRecord?.authToken || env.TWILIO_AUTH_TOKEN || "";
+    
+    const isValid = twilio.validateRequest(authToken, twilioSignature, url, req.body);
     
     if (!isValid) {
         console.error("[SMS Controller] Invalid Twilio Signature");
@@ -460,10 +465,15 @@ export async function inboundWebhook(req: Request, res: Response) {
 export async function statusWebhook(req: Request, res: Response) {
     console.log("[SMS Controller] Status Webhook:", req.body);
     
-    // Twilio Security Validation
+    // Twilio Security Validation (Subaccount aware)
     const twilioSignature = req.headers['x-twilio-signature'] as string;
     const url = `${env.APP_URL}${req.originalUrl}`;
-    const isValid = twilio.validateRequest(env.TWILIO_AUTH_TOKEN || "", twilioSignature, url, req.body);
+    
+    // Fetch the correct authToken for this specific phone number
+    const phoneRecord = await SMSNumber.findOne({ number: req.body.To }).lean();
+    const authToken = phoneRecord?.authToken || env.TWILIO_AUTH_TOKEN || "";
+
+    const isValid = twilio.validateRequest(authToken, twilioSignature, url, req.body);
     
     if (!isValid) {
         console.error("[SMS Controller] Invalid Twilio Signature");

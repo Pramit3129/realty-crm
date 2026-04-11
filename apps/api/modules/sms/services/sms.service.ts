@@ -46,10 +46,20 @@ export class SMS_Service {
         }
     }
 
-    static async onboardUser(user: { _id: any; email: string }, country = 'US', areaCode = 512) {
+    static async onboardUser(user: { _id: any; email: string }, country = 'CA', areaCode = 512) {
+        // Prevent duplicate onboarding
+        const existing = await SMSNumber.exists({ userId: user._id });
+        if (existing) {
+            throw new Error("User already has an SMS number provisioned.");
+        }
+
         const sub = await this.client.api.v2010.accounts.create({ friendlyName: user.email });
 
-        const [num] = await this.client.availablePhoneNumbers(country).local.list({ areaCode, limit: 1 });
+        const available = await this.client.availablePhoneNumbers(country).local.list({ areaCode, limit: 1 });
+        if (!available || available.length === 0) {
+            throw new Error(`No available phone numbers found for area code ${areaCode}.`);
+        }
+        const num = available[0];
 
         const bought = await this.client.incomingPhoneNumbers.create({
             phoneNumber: num.phoneNumber,
@@ -58,7 +68,12 @@ export class SMS_Service {
             statusCallback: `${APP_URL}/api/v1/sms/webhook/status`
         });
 
-        await SMSNumber.create({ userId: user._id, number: bought.phoneNumber, accountSid: sub.sid });
+        await SMSNumber.create({ 
+            userId: user._id, 
+            number: bought.phoneNumber, 
+            accountSid: sub.sid,
+            authToken: sub.authToken // Store subaccount token for webhook security
+        });
     }
 
     static async assignCampaign(leadId: string, stepIndex = 0, campaignId: string = 'default') {
@@ -397,6 +412,18 @@ export class SMS_Service {
         const leadPhone = unifiedData.lead.phone as string | undefined;
         const fromNumber = unifiedData.phoneLine.number as string | undefined;
         
+        // 3. IDEMPOTENCY CHECK: Ensure we haven't already sent this specific step
+        const alreadySent = await SMSMessage.exists({
+            enrollmentId: unifiedData._id,
+            stepIndex: unifiedData.currentStepIndex,
+            direction: 'outbound'
+        });
+
+        if (alreadySent) {
+            console.log(`[SMS_Service] Step ${unifiedData.currentStepIndex} already sent for enrollment ${enrollmentId}. Skipping.`);
+            return { message: "Task skipped: Message already sent." };
+        }
+
         // 4. Dispatch actual SMS message
         // TS Typings strictly check strings to prevent TS2345
         if (leadPhone && fromNumber) {
@@ -409,6 +436,8 @@ export class SMS_Service {
                 body: step.message,
                 fromNumber: fromNumber,
                 sid: twilioResponse.sid,
+                stepIndex: unifiedData.currentStepIndex,
+                enrollmentId: unifiedData._id,
                 deliveryStatus: twilioResponse.status || 'queued'
             });
         }
@@ -467,8 +496,14 @@ export class SMS_Service {
             const phoneLine = await SMSNumber.findOne({ number: To });
             if (!phoneLine) return { success: false, message: "Phone line not found" };
 
+            const normalizedFrom = this.normalizePhoneNumber(From);
             const LeadModel = mongoose.model("Lead");
-            const lead: any = await LeadModel.findOne({ phone: From, userId: phoneLine.userId });
+            
+            // Look for leads by normalized phone
+            const lead: any = await LeadModel.findOne({ 
+                phone: { $regex: new RegExp(normalizedFrom.replace('+', '\\+') + '$') }, 
+                userId: phoneLine.userId 
+            });
 
             if (lead) {
                 if (Body.trim().toUpperCase() === 'STOP') {
@@ -525,5 +560,14 @@ export class SMS_Service {
             console.error("[SMS_Service] Status Webhook Error:", err);
             throw err;
         }
+    }
+
+    // ── Utilities ───────────────────────────────────────────────────────
+
+    /**
+     * Normalizes a phone number to standard format (digits only, optional leading +)
+     */
+    static normalizePhoneNumber(phone: string): string {
+        return phone.replace(/[^\d+]/g, '');
     }
 }
