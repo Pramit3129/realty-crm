@@ -3,7 +3,7 @@ import { CloudTasksClient } from "@google-cloud/tasks";
 export class SMS_GCP_Service {
     private static client = new CloudTasksClient();
 
-    static async createGCPTask(enrollmentId: string, delaySeconds: number) {
+    static async createGCPTask(enrollmentId: string, delaySeconds: number, campaignIdAtTimeOfScheduling: string, stepIndexAtTimeOfScheduling: number) {
         try {
 
             /*
@@ -49,11 +49,15 @@ export class SMS_GCP_Service {
                 httpRequest: {
                     httpMethod: 'POST' as const,
                     url: workerUrl,
-                    body: Buffer.from(JSON.stringify({ enrollmentId })).toString('base64'),
+                    body: Buffer.from(JSON.stringify({ 
+                        enrollmentId,
+                        campaignIdAtTimeOfScheduling,
+                        stepIndexAtTimeOfScheduling
+                    })).toString('base64'),
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-internal-header': process.env.INTERNAL_SECRET ?? '',
-                    },
+                        'x-internal-secret': process.env.INTERNAL_SECRET ?? '',
+                    }
                 },
             };
             const result = await this.client.createTask({ parent, task });
