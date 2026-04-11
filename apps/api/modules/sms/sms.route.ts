@@ -21,6 +21,7 @@ import {
     addStep,
     updateStep,
     deleteStep,
+    smsWorker,
 } from "./sms.controller";
 import requirePro from "../../shared/middleware/requirePro";
 
@@ -30,6 +31,10 @@ const router = express.Router();
 router.get("/health", (_req, res) => {
     res.send("SMS Route running properly");
 });
+
+// ── Worker Endpoint ───────────────────────────────────────────────────
+// This is protected via internal secret validation in the controller
+router.post("/worker/send", smsWorker);
 
 // ── All routes below require authentication ──────────────────────────
 router.use(requireAuth);

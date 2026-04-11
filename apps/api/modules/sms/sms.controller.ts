@@ -1,5 +1,6 @@
 import { SMS_Service } from "./services/sms.service";
 import type { Request, Response } from "express";
+import { env } from "../../shared/config/env.config";
 import { Lead } from "../lead/lead.model";
 import type { AuthenticatedRequest, AuthenticatedUser } from "../../shared/middleware/requireAuth";
 
@@ -310,6 +311,37 @@ export async function deleteStep(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: error.message || "Failed to delete step",
+        });
+    }
+}
+
+// ── Worker Endpoint ───────────────────────────────────────────────────
+
+export async function smsWorker(req: Request, res: Response) {
+    try {
+        const internalSecret = req.headers["x-internal-secret"];
+        if (internalSecret !== env.INTERNAL_SECRET) {
+            return res.status(401).json({ message: "Unauthorized: Invalid internal secret" });
+        }
+
+        const { enrollmentId, campaignIdAtTimeOfScheduling, stepIndexAtTimeOfScheduling } = req.body;
+
+        if (!enrollmentId || !campaignIdAtTimeOfScheduling || stepIndexAtTimeOfScheduling === undefined) {
+            return res.status(400).send("Missing required parameters");
+        }
+
+        const result = await SMS_Service.processWorkerTask(
+            enrollmentId,
+            campaignIdAtTimeOfScheduling,
+            stepIndexAtTimeOfScheduling
+        );
+
+        return res.status(200).send(result.message);
+    } catch (error: any) {
+        console.error("[SMS Controller] smsWorker error:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to process SMS worker task",
         });
     }
 }

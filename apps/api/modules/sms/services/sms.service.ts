@@ -1,4 +1,5 @@
 import twilio from 'twilio';
+import mongoose from 'mongoose';
 import { env } from "../../../shared/config/env.config";
 import type { Istep, ICampaignEnrollment, ISmsCampaign } from '../sms.types';
 import { SMSNumber } from '../models/smsNumber.model';
@@ -63,7 +64,9 @@ export class SMS_Service {
         let campaign: ISmsCampaign | null;
 
         if (campaignId === 'default') {
-            campaign = await SMSCampaign.findOne({ isDefault: true });
+            const lead = await mongoose.model("Lead").findById(leadId).select("userId").lean();
+            if (!lead) return { message: "Lead not found" };
+            campaign = await SMSCampaign.findOne({ isDefault: true, userId: (lead as any).userId });
         } else {
             campaign = await SMSCampaign.findById(campaignId);
         }
@@ -93,7 +96,12 @@ export class SMS_Service {
 
         if (isNearFuture) {
             // Push directly to GCP Cloud Tasks
-            await SMS_GCP_Service.createGCPTask(enrollment._id.toString(), step.delaySeconds);
+            await SMS_GCP_Service.createGCPTask(
+                enrollment._id.toString(),
+                step.delaySeconds,
+                enrollment.campaignId.toString(),
+                stepIndex
+            );
             return { message: "Campaign assigned successfully", enrollment };
         }
         else {
@@ -105,7 +113,10 @@ export class SMS_Service {
         
         let campaign: ISmsCampaign | null;
         if (campaignId === 'default') {
-            campaign = await SMSCampaign.findOne({ isDefault: true });
+            if (leadIds.length === 0) return { message: "No leads provided", results: [] };
+            const firstLead = await mongoose.model("Lead").findById(leadIds[0]).select("userId").lean();
+            if (!firstLead) return { message: "Lead context missing", results: [] };
+            campaign = await SMSCampaign.findOne({ isDefault: true, userId: (firstLead as any).userId });
         } else {
             campaign = await SMSCampaign.findById(campaignId);
         }
@@ -152,7 +163,12 @@ export class SMS_Service {
             }).select('_id leadId').lean();
 
             const taskPromises = enrollments.map(enrollment =>
-                SMS_GCP_Service.createGCPTask(enrollment._id.toString(), step.delaySeconds)
+                SMS_GCP_Service.createGCPTask(
+                    enrollment._id.toString(),
+                    step.delaySeconds,
+                    resolvedCampaignId.toString(),
+                    stepIndex
+                )
                     .then(() => ({
                         leadId: enrollment.leadId.toString(),
                         taskCreated: true,
@@ -312,6 +328,114 @@ export class SMS_Service {
 
         return updated;
     }
-}
 
-// this is stage
+    // ── Worker Task Processing ────────────────────────────────────────
+
+    static async processWorkerTask(enrollmentId: string, campaignIdAtTimeOfScheduling: string, stepIndexAtTimeOfScheduling: number) {
+        // 1. One DB read to fetch Enrollment, Lead, Phone line, and Campaign simultaneously 
+        const dbResult = await CampaignEnrollment.aggregate([
+            { $match: { _id: new mongoose.Types.ObjectId(enrollmentId) } },
+            {
+                $lookup: {
+                    from: "leads",
+                    localField: "leadId",
+                    foreignField: "_id",
+                    as: "lead"
+                }
+            },
+            { $unwind: "$lead" },
+            {
+                $lookup: {
+                    from: "smsnumbers",
+                    localField: "lead.userId",
+                    foreignField: "userId",
+                    as: "phoneLine"
+                }
+            },
+            { $unwind: { path: "$phoneLine", preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: "smscampaigns",
+                    localField: "campaignId",
+                    foreignField: "_id",
+                    as: "campaign"
+                }
+            },
+            { $unwind: { path: "$campaign", preserveNullAndEmptyArrays: true } }
+        ]);
+
+        if (!dbResult || dbResult.length === 0) {
+            return { message: "Task discarded: Enrollment or Lead not found." };
+        }
+
+        const unifiedData = dbResult[0];
+        const currentCampaignId = unifiedData.campaignId.toString();
+
+        // 2. THE AUTO-CORRECT LOGIC
+        if (currentCampaignId !== campaignIdAtTimeOfScheduling) {
+            console.log("Campaign mismatch detected! User changed the campaign. Restarting at Step 1...");
+            await this.assignCampaign(unifiedData.lead._id.toString(), 0, currentCampaignId);
+            return { message: "Task discarded: Lead moved to a new campaign." };
+        }
+
+        if (unifiedData.currentStepIndex !== stepIndexAtTimeOfScheduling) {
+            console.log("Step mismatch! User manually skipped steps or reset. Discarding old task.");
+            return { message: "Task discarded: Step index is outdated." };
+        }
+
+        if (!unifiedData.phoneLine) {
+            return { message: "Task discarded: No SMS number found for user." };
+        }
+
+        if (!unifiedData.campaign || !unifiedData.campaign.steps[unifiedData.currentStepIndex]) {
+            return { message: "Task discarded: Campaign or step not found." };
+        }
+
+        const step = unifiedData.campaign.steps[unifiedData.currentStepIndex];
+        const leadPhone = unifiedData.lead.phone as string | undefined;
+        const fromNumber = unifiedData.phoneLine.number as string | undefined;
+        
+        // 4. Dispatch actual SMS message
+        // TS Typings strictly check strings to prevent TS2345
+        if (leadPhone && fromNumber) {
+            await this.sendSMS(leadPhone, fromNumber, step.message);
+        }
+
+        // 5. Compute and inline the next step's database assignments
+        const nextStepIndex = unifiedData.currentStepIndex + 1;
+        if (nextStepIndex < unifiedData.campaign.steps.length) {
+            const nextStep = unifiedData.campaign.steps[nextStepIndex];
+            const sendTime = new Date(Date.now() + (nextStep.delaySeconds * 1000));
+            const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+            const isNearFuture = sendTime <= twoHoursFromNow;
+
+            await CampaignEnrollment.updateOne(
+                { _id: new mongoose.Types.ObjectId(enrollmentId) },
+                {
+                    $set: {
+                        currentStepIndex: nextStepIndex,
+                        nextSmsTime: sendTime,
+                        status: isNearFuture ? 'QUEUED_IN_TASKS' : 'AWAITING_CRON'
+                    }
+                }
+            );
+
+            if (isNearFuture) {
+                await SMS_GCP_Service.createGCPTask(
+                    enrollmentId,
+                    nextStep.delaySeconds,
+                    currentCampaignId,
+                    nextStepIndex
+                );
+            }
+        } else {
+            // Campaign sequence completed
+            await CampaignEnrollment.updateOne(
+                { _id: new mongoose.Types.ObjectId(enrollmentId) },
+                { $set: { status: 'COMPLETED' } }
+            );
+        }
+
+        return { message: "Task processed successfully." };
+    }
+}
