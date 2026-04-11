@@ -101,6 +101,89 @@ export class SMS_Service {
         }
     }
 
+    static async assignCampaigns(leadIds: string[], stepIndex = 0, campaignId: string = 'default') {
+        
+        let campaign: ISmsCampaign | null;
+        if (campaignId === 'default') {
+            campaign = await SMSCampaign.findOne({ isDefault: true });
+        } else {
+            campaign = await SMSCampaign.findById(campaignId);
+        }
+
+        if (!campaign) {
+            return { message: "Campaign not found", results: [] };
+        }
+
+        const step: Istep | null = campaign.steps[stepIndex]!;
+        if (!step) {
+            return { message: "Invalid Step or Step not found", results: [] };
+        }
+
+        const resolvedCampaignId = (campaign as any)._id;
+        const sendTime = new Date(Date.now() + (step.delaySeconds * 1000));
+        const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+        const isNearFuture = sendTime <= twoHoursFromNow;
+        const status = isNearFuture ? 'QUEUED_IN_TASKS' as const : 'AWAITING_CRON' as const;
+
+        // 2) Bulk upsert all enrollments in a single DB round-trip
+        const bulkOps = leadIds.map(leadId => ({
+            updateOne: {
+                filter: { leadId, campaignId: resolvedCampaignId },
+                update: {
+                    $set: {
+                        currentStepIndex: stepIndex,
+                        nextSmsTime: sendTime,
+                        status,
+                    },
+                },
+                upsert: true,
+            },
+        }));
+
+        const bulkResult = await CampaignEnrollment.bulkWrite(bulkOps, { ordered: false });
+
+        // 3) If near-future, fetch enrollment IDs and batch-create GCP tasks
+        const gcpResults: { leadId: string; taskCreated: boolean; error?: string }[] = [];
+
+        if (isNearFuture) {
+            const enrollments = await CampaignEnrollment.find({
+                leadId: { $in: leadIds },
+                campaignId: resolvedCampaignId,
+            }).select('_id leadId').lean();
+
+            const taskPromises = enrollments.map(enrollment =>
+                SMS_GCP_Service.createGCPTask(enrollment._id.toString(), step.delaySeconds)
+                    .then(() => ({
+                        leadId: enrollment.leadId.toString(),
+                        taskCreated: true,
+                    }))
+                    .catch((err: any) => ({
+                        leadId: enrollment.leadId.toString(),
+                        taskCreated: false,
+                        error: err.message || 'Failed to create GCP task',
+                    }))
+            );
+
+            const settled = await Promise.allSettled(taskPromises);
+            for (const result of settled) {
+                if (result.status === 'fulfilled') {
+                    gcpResults.push(result.value);
+                }
+            }
+        }
+
+        return {
+            message: "Campaigns assigned successfully",
+            summary: {
+                totalLeads: leadIds.length,
+                matched: bulkResult.matchedCount,
+                upserted: bulkResult.upsertedCount,
+                modified: bulkResult.modifiedCount,
+            },
+            gcpResults: isNearFuture ? gcpResults : undefined,
+        };
+    }
+
     // ── SMS Campaign CRUD ─────────────────────────────────────────────
 
     static async createCampaign(

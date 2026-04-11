@@ -4,36 +4,6 @@ import { Lead } from "../lead/lead.model";
 import type { AuthenticatedRequest, AuthenticatedUser } from "../../shared/middleware/requireAuth";
 
 
-
-// export const sendSMS = async (req: Request, res: Response) => {
-//     const { leadId, campaignId, stepIndex } = req.body;
-//     const lead = await Lead.findById(leadId).populate('userId'); // userId contains Twilio number
-//     const campaign = await Campaign.findById(campaignId);
-
-//     // 1. SAFETY CHECK (Crucial!)
-//     if (!lead.isSubscribed || lead.status === 'CONVERTED') {
-//         return res.status(200).send("Lead no longer eligible.");
-//     }
-
-//     // 2. SEND SMS
-//     await twilio.messages.create({
-//         body: campaign.steps[stepIndex].message,
-//         from: lead.userId.assignedNumber,
-//         to: lead.phoneNumber
-//     });
-
-//     // 3. CYCLE: Schedule the next step automatically
-//     const nextIndex = stepIndex + 1;
-//     if (campaign.steps[nextIndex]) {
-//         await moveLeadToNextStep(leadId, campaignId, nextIndex);
-//     } else {
-//         await Lead.findByIdAndUpdate(leadId, { status: 'COMPLETED' });
-//     }
-
-//     res.status(200).send("SMS Sent and next step routed.");
-// }
-
-
 export async function onboardUser(req: Request, res: Response) {
     const authReq = req as AuthenticatedRequest;
     const user = authReq.user as AuthenticatedUser;
@@ -65,6 +35,37 @@ export async function assignCampaing(req: Request, res: Response){
     const assignedStatus = await SMS_Service.assignCampaign(lead._id.toString(), 0, campaignId);
     
     res.status(200).send({message: "Campaign assigned successfully", assignedStatus});
+}
+
+export async function assignCampaings(req: Request, res: Response){
+    const authReq = req as AuthenticatedRequest;
+    const user = authReq.user as AuthenticatedUser;
+
+    const { leadIds, campaignId } = req.body;
+
+    if(!Array.isArray(leadIds) || leadIds.length === 0){
+        return res.status(400).json({message: "leadIds must be a non-empty array"});
+    }
+
+    if(!campaignId){
+        return res.status(400).json({message: "Campaign ID is required"});
+    }
+
+    // Verify all leads belong to the user
+    const validLeads = await Lead.find({_id: {$in: leadIds}, userId: user._id}).select("_id");
+    const validLeadIds = validLeads.map(l => l._id.toString());
+
+    const invalidLeadIds = leadIds.filter((id: string) => !validLeadIds.includes(id));
+    if(invalidLeadIds.length > 0){
+        return res.status(404).json({
+            message: "Some leads were not found or not assigned to you",
+            invalidLeadIds,
+        });
+    }
+
+    const result = await SMS_Service.assignCampaigns(validLeadIds, 0, campaignId);
+
+    res.status(200).send(result);
 }
 
 // ── SMS Campaign CRUD ─────────────────────────────────────────────────

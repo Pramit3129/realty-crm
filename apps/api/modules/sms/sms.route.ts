@@ -12,6 +12,7 @@ import {
 import {
     onboardUser,
     assignCampaing,
+    assignCampaings,
     createSmsCampaign,
     getSmsCampaigns,
     getSmsCampaignById,
@@ -21,6 +22,7 @@ import {
     updateStep,
     deleteStep,
 } from "./sms.controller";
+import requirePro from "../../shared/middleware/requirePro";
 
 const router = express.Router();
 
@@ -31,10 +33,12 @@ router.get("/health", (_req, res) => {
 
 // ── All routes below require authentication ──────────────────────────
 router.use(requireAuth);
+router.use(requirePro);
 
 // ── Onboarding & Enrollment ──────────────────────────────────────────
 router.post("/onboard", onboardUser);
 router.post("/assign", assignCampaing);
+router.post("/assign-bulk", assignCampaings);
 
 // ── Campaign CRUD ────────────────────────────────────────────────────
 router.post(
