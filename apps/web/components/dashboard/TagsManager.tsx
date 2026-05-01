@@ -37,11 +37,24 @@ export interface TagDef {
   updatedAt?: string;
 }
 
+interface FilterOption {
+  label: string;
+  value: string;
+}
 interface FilterSchemaField {
   key: string;
   label: string;
   type: string;
-  options?: string[];
+  options?: string[] | FilterOption[];
+}
+
+function normalizeOptions(
+  opts?: string[] | FilterOption[],
+): FilterOption[] | undefined {
+  if (!opts || opts.length === 0) return opts ? [] : undefined;
+  if (typeof opts[0] === "string")
+    return (opts as string[]).map((s) => ({ label: s, value: s }));
+  return opts as FilterOption[];
 }
 interface FilterSchema {
   standard: FilterSchemaField[];
@@ -639,21 +652,12 @@ function FilterRowEditor({
   onChange: (patch: Partial<FilterRow>) => void;
   onRemove: () => void;
 }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <NativeSelect
-        value={row.key}
-        onChange={(v) => onChange({ key: v })}
-        options={fields.map((f) => ({ value: f.key, label: f.label }))}
-        className="flex-[1.4]"
-      />
-      <NativeSelect
-        value={row.op}
-        onChange={(v) => onChange({ op: v as Operator })}
-        options={OPERATORS.map((o) => ({ value: o.value, label: o.label }))}
-        className="w-[100px]"
-      />
-      {row.op === "exists" ? (
+  const field = fields.find((f) => f.key === row.key);
+  const fieldOptions = normalizeOptions(field?.options);
+
+  function renderValue() {
+    if (row.op === "exists") {
+      return (
         <NativeSelect
           value={row.value || "true"}
           onChange={(v) => onChange({ value: v })}
@@ -663,14 +667,53 @@ function FilterRowEditor({
           ]}
           className="flex-1"
         />
-      ) : (
-        <Input
+      );
+    }
+    if (fieldOptions && fieldOptions.length > 0) {
+      if (row.op === "in") {
+        return (
+          <OptionMultiPicker
+            value={row.value}
+            options={fieldOptions}
+            onChange={(v) => onChange({ value: v })}
+            className="flex-1"
+          />
+        );
+      }
+      return (
+        <OptionPicker
           value={row.value}
-          onChange={(e) => onChange({ value: e.target.value })}
-          placeholder={row.op === "in" ? "comma,separated" : "value"}
-          className="h-7 flex-1 bg-white/[0.04] text-[12px]"
+          options={fieldOptions}
+          onChange={(v) => onChange({ value: v })}
+          className="flex-1"
         />
-      )}
+      );
+    }
+    return (
+      <Input
+        value={row.value}
+        onChange={(e) => onChange({ value: e.target.value })}
+        placeholder={row.op === "in" ? "comma,separated" : "value"}
+        className="h-7 flex-1 bg-white/[0.04] text-[12px]"
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <NativeSelect
+        value={row.key}
+        onChange={(v) => onChange({ key: v, value: "" })}
+        options={fields.map((f) => ({ value: f.key, label: f.label }))}
+        className="flex-[1.4]"
+      />
+      <NativeSelect
+        value={row.op}
+        onChange={(v) => onChange({ op: v as Operator })}
+        options={OPERATORS.map((o) => ({ value: o.value, label: o.label }))}
+        className="w-[100px]"
+      />
+      {renderValue()}
       <button
         onClick={onRemove}
         className="rounded p-1 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-400"
@@ -678,6 +721,166 @@ function FilterRowEditor({
       >
         <X className="h-3 w-3" />
       </button>
+    </div>
+  );
+}
+
+function OptionPicker({
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  value: string;
+  options: FilterOption[];
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value);
+  const filtered = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  return (
+    <div ref={ref} className={`relative ${className || ""}`}>
+      <input
+        value={open ? query : selected?.label || ""}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => {
+          setQuery("");
+          setOpen(true);
+        }}
+        placeholder="Search…"
+        className="flex h-7 w-full items-center rounded-md border border-white/[0.06] bg-white/[0.04] px-2 text-[12px] text-foreground transition-colors hover:bg-white/[0.06] focus:outline-none focus:ring-1 focus:ring-white/[0.12]"
+      />
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-56 min-w-full overflow-auto rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
+          {filtered.length === 0 && (
+            <div className="px-3 py-1.5 text-[12px] text-muted-foreground/60">
+              No matches
+            </div>
+          )}
+          {filtered.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+                setQuery("");
+              }}
+              className={`flex w-full items-center justify-between px-3 py-1.5 text-[12px] transition-colors hover:bg-white/[0.06] ${
+                value === opt.value ? "text-foreground" : "text-muted-foreground"
+              }`}
+            >
+              <span className="truncate text-left">{opt.label}</span>
+              {value === opt.value && <Check className="h-3 w-3 shrink-0 ml-2" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OptionMultiPicker({
+  value,
+  options,
+  onChange,
+  className,
+}: {
+  value: string;
+  options: FilterOption[];
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const selectedValues = value
+    ? value.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  const selectedLabels = selectedValues.map(
+    (v) => options.find((o) => o.value === v)?.label || v,
+  );
+  const filtered = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  function toggle(v: string) {
+    const next = selectedValues.includes(v)
+      ? selectedValues.filter((x) => x !== v)
+      : [...selectedValues, v];
+    onChange(next.join(","));
+  }
+
+  return (
+    <div ref={ref} className={`relative ${className || ""}`}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-7 w-full items-center justify-between gap-1 rounded-md border border-white/[0.06] bg-white/[0.04] px-2 text-[12px] text-foreground transition-colors hover:bg-white/[0.06]"
+      >
+        <span className="truncate text-left">
+          {selectedLabels.length > 0 ? selectedLabels.join(", ") : "Select…"}
+        </span>
+        <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 min-w-full overflow-hidden rounded-lg border border-white/[0.08] bg-[#1a1a1a] shadow-xl">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search…"
+            className="block w-full border-b border-white/[0.06] bg-transparent px-3 py-1.5 text-[12px] text-foreground focus:outline-none"
+          />
+          <div className="max-h-48 overflow-auto py-1">
+            {filtered.length === 0 && (
+              <div className="px-3 py-1.5 text-[12px] text-muted-foreground/60">
+                No matches
+              </div>
+            )}
+            {filtered.map((opt) => {
+              const checked = selectedValues.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => toggle(opt.value)}
+                  className={`flex w-full items-center justify-between px-3 py-1.5 text-[12px] transition-colors hover:bg-white/[0.06] ${
+                    checked ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <span className="truncate text-left">{opt.label}</span>
+                  {checked && <Check className="h-3 w-3 shrink-0 ml-2" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

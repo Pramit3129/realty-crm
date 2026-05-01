@@ -252,7 +252,13 @@ export const enrollLeadsByTag = async (req: Request, res: Response) => {
       name: lead.name
     }));
 
-    // 3. Enroll leads in the campaign
+    // 3. Persist campaignId on the lead docs so they show up in the campaign's leads list
+    await Lead.updateMany(
+      { _id: { $in: leadDetails.map((l) => l.leadId) }, workspaceId },
+      { $set: { campaignId } },
+    );
+
+    // 4. Enroll leads in the campaign (creates CampaignBatch rows for each step)
     await CampaingService.enrollLeads(campaignId, leadDetails);
 
     return res.status(200).json({

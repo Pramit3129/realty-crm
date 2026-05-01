@@ -22,6 +22,7 @@ import {
   Search,
   CheckSquare,
   Square,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1039,6 +1040,10 @@ function AddLeadsToCampaignModal({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
+  const [mode, setMode] = useState<"leads" | "tags">("leads");
+  const [tags, setTags] = useState<any[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [enrollingTagId, setEnrollingTagId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -1056,6 +1061,44 @@ function AddLeadsToCampaignModal({
     };
     fetchAll();
   }, [workspaceId]);
+
+  useEffect(() => {
+    if (mode !== "tags" || tags.length > 0) return;
+    const fetchTags = async () => {
+      setTagsLoading(true);
+      try {
+        const res = await api(`/tag/list`, {
+          headers: { "x-workspace-id": workspaceId },
+        });
+        if (res.ok) setTags(await res.json());
+      } finally {
+        setTagsLoading(false);
+      }
+    };
+    fetchTags();
+  }, [mode, workspaceId, tags.length]);
+
+  const enrollTag = async (tagId: string) => {
+    setEnrollingTagId(tagId);
+    try {
+      const res = await api(`/campaign/enroll-tag`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignId, tagId, workspaceId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        onSuccess();
+        onClose();
+      } else {
+        alert(data?.error?.message || data?.message || "Failed to enroll tag");
+      }
+    } catch {
+      alert("Error enrolling tag");
+    } finally {
+      setEnrollingTagId(null);
+    }
+  };
 
   const availableLeads = allLeads.filter((l) => !existingLeadIds.has(l._id));
 
@@ -1135,7 +1178,32 @@ function AddLeadsToCampaignModal({
           </button>
         </div>
 
+        {/* Mode tabs */}
+        <div className="mb-3 flex items-center gap-1 rounded-md border border-white/[0.06] bg-white/[0.02] p-0.5">
+          <button
+            onClick={() => setMode("leads")}
+            className={`flex-1 rounded px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              mode === "leads"
+                ? "bg-white/[0.08] text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Pick leads
+          </button>
+          <button
+            onClick={() => setMode("tags")}
+            className={`flex-1 rounded px-2.5 py-1 text-[11px] font-medium transition-colors ${
+              mode === "tags"
+                ? "bg-white/[0.08] text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            By tag
+          </button>
+        </div>
+
         {/* Search + select-all toolbar */}
+        {mode === "leads" && (
         <div className="mb-3 flex flex-col gap-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
@@ -1180,7 +1248,9 @@ function AddLeadsToCampaignModal({
             </button>
           </div>
         </div>
+        )}
 
+        {mode === "leads" ? (
         <div className="flex-1 overflow-y-auto min-h-0 mb-4 space-y-2">
           {loading ? (
             <p className="text-xs text-muted-foreground text-center py-4">
@@ -1224,6 +1294,65 @@ function AddLeadsToCampaignModal({
             ))
           )}
         </div>
+        ) : (
+        <div className="flex-1 overflow-y-auto min-h-0 mb-4 space-y-1.5">
+          <p className="text-[11px] text-muted-foreground/70 pb-1">
+            Click a tag to enroll all matching leads.
+          </p>
+          {tagsLoading ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              Loading tags...
+            </p>
+          ) : tags.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              No tags yet. Create one from the leads view.
+            </p>
+          ) : (
+            tags.map((tag) => {
+              const isEnrolling = enrollingTagId === tag._id;
+              const disabled = enrollingTagId !== null;
+              return (
+                <button
+                  key={tag._id}
+                  onClick={() => enrollTag(tag._id)}
+                  disabled={disabled}
+                  className="group flex w-full items-center gap-3 rounded-md border border-white/[0.04] bg-white/[0.02] p-2.5 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium shrink-0"
+                    style={{
+                      backgroundColor: hexToRgba(tag.color || "#3B82F6", 0.18),
+                      color: tag.color || "#3B82F6",
+                    }}
+                  >
+                    {tag.type === "DYNAMIC" ? (
+                      <Sparkles className="h-2.5 w-2.5" />
+                    ) : (
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: tag.color || "#3B82F6" }}
+                      />
+                    )}
+                    {tag.name}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 shrink-0">
+                    {tag.type === "DYNAMIC" ? "Smart View" : "Manual"}
+                  </span>
+                  <span className="ml-auto text-[11px] text-muted-foreground/70 shrink-0">
+                    {isEnrolling ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-400">
+                        Enroll →
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+        )}
 
         <div className="flex justify-end gap-2 pt-4 border-t border-white/[0.08]">
           <Button
@@ -1232,21 +1361,31 @@ function AddLeadsToCampaignModal({
             onClick={onClose}
             className="h-8 text-xs"
           >
-            Cancel
+            {mode === "tags" ? "Close" : "Cancel"}
           </Button>
-          <Button
-            size="sm"
-            onClick={submit}
-            disabled={submitting || selectedIds.size === 0}
-            className="h-8 text-xs min-w-[100px]"
-          >
-            {submitting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
-            ) : null}
-            {submitting ? "Adding..." : `Add ${selectedIds.size} Leads`}
-          </Button>
+          {mode === "leads" && (
+            <Button
+              size="sm"
+              onClick={submit}
+              disabled={submitting || selectedIds.size === 0}
+              className="h-8 text-xs min-w-[100px]"
+            >
+              {submitting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+              ) : null}
+              {submitting ? "Adding..." : `Add ${selectedIds.size} Leads`}
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }

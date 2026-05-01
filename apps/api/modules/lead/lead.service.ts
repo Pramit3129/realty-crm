@@ -115,20 +115,21 @@ export class LeadService {
       .populate("tags", "name color type")
       .lean();
 
-    // virtual tag Logic 
+    // virtual tag Logic
     const dynamicTags = await Tag.find({ workspaceId, type: "DYNAMIC" }).lean();
     const tagMatchers = dynamicTags.map(tag => ({
       tag,
-      matches: sift(this.normalizeFilters(tag.filters))
+      matches: sift(this.normalizeFiltersForSift(tag.filters))
     }));
-    
+
     return leads.map(lead => {
+      const flat = this.flattenLeadForSift(lead);
       const virtualTags = tagMatchers
         .filter(m => {
-          try { return m.matches(lead); } catch { return false; }
+          try { return m.matches(flat); } catch { return false; }
         })
         .map(m => m.tag);
-      
+
       return {
         ...lead,
         tags: [...(lead.tags || []), ...virtualTags]
@@ -170,10 +171,11 @@ export class LeadService {
       type: "DYNAMIC",
     }).lean();
 
+    const flat = this.flattenLeadForSift(leadData);
     const virtualTags = dynamicTags
       .filter((tag) => {
         try {
-          return sift(this.normalizeFilters(tag.filters))(leadData);
+          return sift(this.normalizeFiltersForSift(tag.filters))(flat);
         } catch (e) {
           return false;
         }
@@ -624,9 +626,66 @@ export class LeadService {
     return await Lead.updateMany(query, { $pull: { tags: tagId } });
   }
 
+  // Sift runs in-memory on populated lead docs (realtorId is `{_id, name, email}`).
+  // Flatten populated ObjectId refs to their hex string so equality matches a string filter.
+  static flattenLeadForSift(lead: any): any {
+    if (!lead) return lead;
+    const out: any = { ...lead };
+    const stringifyRef = (v: any): any => {
+      if (!v) return v;
+      if (v?._id) return v._id.toString();
+      if (typeof v?.toString === "function" && v.constructor?.name === "ObjectId") return v.toString();
+      return v;
+    };
+    if ("realtorId" in out) out.realtorId = stringifyRef(out.realtorId);
+    if ("workspaceId" in out) out.workspaceId = stringifyRef(out.workspaceId);
+    if ("stageId" in out) out.stageId = stringifyRef(out.stageId);
+    if ("campaignId" in out) out.campaignId = stringifyRef(out.campaignId);
+    return out;
+  }
+
+  // Sift can't compare an ObjectId instance to a hex string; keep ObjectId-keyed
+  // filter values as plain strings here and rely on flattenLeadForSift on the lead side.
+  static normalizeFiltersForSift(filters: any): any {
+    if (!filters) return {};
+    const OBJECT_ID_KEYS = new Set(["realtorId", "workspaceId", "_id", "campaignId", "stageId"]);
+    const normalized: any = {};
+    for (const key in filters) {
+      const value = filters[key];
+      if (["city", "email", "source"].includes(key)) {
+        normalized[key] = typeof value === "string" ? value.toLowerCase() : value;
+        continue;
+      }
+      if (OBJECT_ID_KEYS.has(key)) {
+        // leave as plain string for string-vs-string equality in sift
+        normalized[key] = value && typeof value === "object" && value._bsontype
+          ? value.toString()
+          : value;
+        continue;
+      }
+      if (typeof value === "string") {
+        normalized[key] = { $regex: `^${value}$`, $options: "i" };
+      } else if (
+        value !== null &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        !Object.keys(value).some((k) => k.startsWith("$"))
+      ) {
+        normalized[key] = this.normalizeFiltersForSift(value);
+      } else {
+        normalized[key] = value;
+      }
+    }
+    return normalized;
+  }
+
   static normalizeFilters(filters: any): any {
     if (!filters) return {};
     const normalized: any = {};
+
+    const OBJECT_ID_KEYS = new Set(["realtorId", "workspaceId", "_id", "campaignId"]);
+    const isObjectIdHex = (v: any) =>
+      typeof v === "string" && /^[a-f0-9]{24}$/i.test(v);
 
     for (const key in filters) {
       const value = filters[key];
@@ -636,17 +695,28 @@ export class LeadService {
         continue;
       }
 
+      // ObjectId-typed fields: skip regex (regex never matches ObjectId-typed columns).
+      // Cast hex strings to ObjectId so Mongo can match the stored ObjectId directly.
+      if (OBJECT_ID_KEYS.has(key) || isObjectIdHex(value)) {
+        if (isObjectIdHex(value)) {
+          normalized[key] = new mongoose.Types.ObjectId(value);
+        } else {
+          normalized[key] = value;
+        }
+        continue;
+      }
+
       if (typeof value === "string") {
         normalized[key] = { $regex: `^${value}$`, $options: "i" };
       }
       else if (
-        value !== null && 
-        typeof value === "object" && 
-        !Array.isArray(value) && 
+        value !== null &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
         !Object.keys(value).some(k => k.startsWith('$'))
       ) {
         normalized[key] = this.normalizeFilters(value);
-      } 
+      }
       else {
         normalized[key] = value;
       }
