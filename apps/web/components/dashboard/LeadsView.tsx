@@ -251,7 +251,7 @@ export default function LeadsView({
   // new-lead form
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [newCountryCode, setNewCountryCode] = useState("+91");
+  const [newCountryCode, setNewCountryCode] = useState("+1");
   const [newPhone, setNewPhone] = useState("");
   const [newCity, setNewCity] = useState("");
   const [newSource, setNewSource] = useState("");
