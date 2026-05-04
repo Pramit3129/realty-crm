@@ -7,10 +7,10 @@ import { LeadService } from "./lead.service";
 export async function createLead(req: Request, res: Response) {
     try {
         const authReq = req as AuthenticatedRequest;
-        const { name, email, phone, source, city, workspaceId, pipelineId, stageId, type } = authReq.body;
+        const { ...leadData } = authReq.body;
         const realtorId = authReq.user.id;
         const hasSMSCampaignEnabled = authReq.user.hasSMSCampaignEnabled ?? false;
-        const lead = await LeadService.createLead({ name, email, phone, source, city, realtorId, workspaceId, pipelineId, stageId, type }, hasSMSCampaignEnabled);
+        const lead = await LeadService.createLead({ ...leadData, realtorId }, hasSMSCampaignEnabled);
         res.status(201).json({ lead });
     } catch (error: any) {
         res.status(400).json({ message: error.message || "Failed to create lead" });

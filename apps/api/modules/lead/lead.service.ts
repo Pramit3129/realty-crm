@@ -15,6 +15,7 @@ import sift from "sift";
 
 export class LeadService {
   static async createLead(leadData: ILeadCreate, hasSMSCampaignEnabled: boolean = false) {
+    leadData = this.extractExtraFields(leadData);
     const checkWorkspace = await Membership.findOne({
       workspace: leadData.workspaceId,
       user: leadData.realtorId,
@@ -427,7 +428,8 @@ export class LeadService {
     }
 
     const newLeads: ILeadCreate[] = [];
-    for (const lead of leads) {
+    for (let lead of leads) {
+      lead = this.extractExtraFields(lead);
       let assignedPipelineId = lead.pipelineId || defaultPipelineId;
       let assignedStageId = lead.stageId || defaultStageId;
 
@@ -722,5 +724,37 @@ export class LeadService {
       }
     }
     return normalized;
+  }
+
+  private static extractExtraFields(data: any) {
+    const standardKeys = [
+      "name",
+      "email",
+      "phone",
+      "source",
+      "city",
+      "realtorId",
+      "workspaceId",
+      "pipelineId",
+      "stageId",
+      "campaignId",
+      "type",
+      "status",
+      "tags",
+      "extra_fields",
+    ];
+
+    const extra_fields: Record<string, any> = { ...(data.extra_fields || {}) };
+    const cleanData: any = {};
+
+    for (const key in data) {
+      if (standardKeys.includes(key)) {
+        cleanData[key] = data[key];
+      } else {
+        extra_fields[key] = data[key];
+      }
+    }
+
+    return { ...cleanData, extra_fields };
   }
 }
