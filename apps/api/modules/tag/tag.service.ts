@@ -100,7 +100,17 @@ export class TagService {
     return deletedTag;
   }
 
-  static async getFilterSchema(workspaceId: string) {
+  static async getFilterSchema(workspaceId: string, userId: string) {
+    const userMembership = await Membership.findOne({
+      workspace: workspaceId,
+      user: userId,
+      isRemoved: false,
+    });
+
+    if (!userMembership) {
+      throw new Error("You are not a member of this workspace");
+    }
+
     const members = await Membership.find({
       workspace: workspaceId,
       isRemoved: false,
@@ -113,7 +123,7 @@ export class TagService {
         value: m.user._id.toString(),
       }));
 
-    const standardFields = [
+    const standardFields: any[] = [
       { key: "name", label: "Lead Name", type: "text" },
       { key: "email", label: "Email Address", type: "text" },
       { key: "phone", label: "Phone Number", type: "text" },
@@ -121,8 +131,11 @@ export class TagService {
       { key: "source", label: "Lead Source", type: "text" },
       { key: "status", label: "Current Status", type: "text" },
       { key: "type", label: "Lead Type", type: "select", options: ["BUYER", "SELLER"] },
-      { key: "realtorId", label: "Agent", type: "select", options: agentOptions },
     ];
+
+    if (userMembership.role === "OWNER") {
+      standardFields.push({ key: "realtorId", label: "Agent", type: "select", options: agentOptions });
+    }
 
     // Discovery: Find all unique keys used in extra_fields for this workspace
     // We limit to 1000 most recent leads to keep it fast

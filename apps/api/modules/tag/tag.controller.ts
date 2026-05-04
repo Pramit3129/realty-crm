@@ -89,12 +89,13 @@ export class TagController {
 
   static async getFilterSchema(req: Request, res: Response) {
     try {
+      const authReq = req as AuthenticatedRequest;
       const workspaceId = req.headers["x-workspace-id"] as string;
       if (!workspaceId) {
         return res.status(400).json({ error: "Workspace ID is required in headers" });
       }
 
-      const schema = await TagService.getFilterSchema(workspaceId);
+      const schema = await TagService.getFilterSchema(workspaceId, authReq.user.id);
       res.status(200).json(schema);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
