@@ -63,6 +63,10 @@ const userSchema = new Schema<IUser>(
                type: Boolean,
                default: false,
           },
+          emailCredits: {
+               type: Number,
+               default: 200,
+          },
           passwordResetToken: String,
           passwordResetExpires: Date,
      },

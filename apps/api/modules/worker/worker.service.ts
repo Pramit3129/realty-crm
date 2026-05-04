@@ -20,8 +20,8 @@ export class WorkerService {
             { path: "stepId", select: "subject body" },
             {
                 path: "campaignId",
-                select: "userId",
-                populate: { path: "userId", select: "email" }
+                select: "userId status",
+                populate: { path: "userId", select: "email emailCredits" }
             }
         ]).lean();
 
@@ -32,7 +32,9 @@ export class WorkerService {
             throw new Error(`Campaign step not found for batch id: ${batchId}`);
         }
 
-        const userEmail = (batchDoc.campaignId as any)?.userId?.email;
+        const user = (batchDoc.campaignId as any)?.userId;
+        const userEmail = user?.email;
+        let availableCredits = user?.emailCredits ?? 0;
 
         const leads = batchDoc.leads || [];
 
@@ -45,16 +47,35 @@ export class WorkerService {
 
         const backendUrl = env.BACKEND_URL || "http://localhost:3000";
 
-        const filteredLeads = leads.filter((l: any) => l?.email && !unsubscribedLeadIds.has(l.leadId.toString()));
+        // Filter leads: must have email, not unsubscribed, and NO messageId (to avoid duplicates on resume)
+        const filteredLeads = leads.filter((l: any) => 
+            l?.email && 
+            !unsubscribedLeadIds.has(l.leadId.toString()) &&
+            !l.messageId
+        );
 
         if (filteredLeads.length === 0) {
-            await CampaignBatch.findByIdAndUpdate(batchId, { status: "failed" });
+            // If all leads in this batch are processed or unsubscribed, mark batch as sent
+            await CampaignBatch.findByIdAndUpdate(batchId, { status: "sent" });
             return;
         }
 
+        // Credit Check
+        if (availableCredits <= 0) {
+            await Promise.all([
+                Campaing.findByIdAndUpdate(batchDoc.campaignId, { status: "paused" }),
+                CampaignBatch.findByIdAndUpdate(batchId, { status: "paused" })
+            ]);
+            return;
+        }
+
+        // Determine how many we can send
+        const canSendCount = Math.min(filteredLeads.length, availableCredits);
+        const leadsToSend = filteredLeads.slice(0, canSendCount);
+
         const systemReplyEmail = env.REPLY_TO_EMAIL || "replies@yourdomain.com";
 
-        const batchPayload = filteredLeads.map((lead: any) => {
+        const batchPayload = leadsToSend.map((lead: any) => {
             const trackingPixel = `<img src="${backendUrl}/api/v1/campaign/track/${batchId}/${lead.leadId}?cb=${Date.now()}" width="1" height="1" style="display:none; visibility:hidden;" alt="" />`;
             const unsubscribeLink = `<div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; font-family: sans-serif;"><p>If you no longer wish to receive these emails, you can <a href="${backendUrl}/api/v1/campaign/unsubscribe/${lead.leadId}" style="color: #666; text-decoration: underline;">unsubscribe here</a>.</p></div>`;
 
@@ -83,7 +104,7 @@ export class WorkerService {
             if (data && Array.isArray(data)) {
                 const bulkOps = data
                     .map((res: any, index: number) => {
-                        const lead = filteredLeads[index];
+                        const lead = leadsToSend[index];
                         if (!lead) return null;
 
                         return {
@@ -100,9 +121,22 @@ export class WorkerService {
                 }
             }
 
-            await CampaignBatch.findByIdAndUpdate(batchId, {
-                status: "sent"
+            // Decrement credits
+            await User.findByIdAndUpdate(user._id, {
+                $inc: { emailCredits: -leadsToSend.length }
             });
+
+            // If we hit the credit limit before finishing the batch, pause
+            if (leadsToSend.length < filteredLeads.length) {
+                await Promise.all([
+                    Campaing.findByIdAndUpdate(batchDoc.campaignId, { status: "paused" }),
+                    CampaignBatch.findByIdAndUpdate(batchId, { status: "paused" })
+                ]);
+            } else {
+                await CampaignBatch.findByIdAndUpdate(batchId, {
+                    status: "sent"
+                });
+            }
 
         } catch (error) {
 

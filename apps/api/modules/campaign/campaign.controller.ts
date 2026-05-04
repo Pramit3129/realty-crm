@@ -5,6 +5,7 @@ import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
 import type { ICampaignCreate, ICampaignUpdate, ICampaignStepCreate, ILead } from "./campaign.types";
 import { CampaignBatch } from "./models/campaignBatch.model";
 import { Lead } from "../lead/lead.model";
+import { User } from "../user/user.model";
 
 export const createCampaing = async (req: Request, res: Response) => {
   try {
@@ -200,6 +201,14 @@ export const startCampaign = async (req: Request, res: Response) => {
       });
     }
 
+    const user = await User.findById(userId).select("emailCredits");
+    if (!user || user.emailCredits <= 0) {
+      return res.status(403).json({
+        success: false,
+        message: "You have exhausted your email credits. Please buy more credits to continue.",
+      });
+    }
+
     const leadDetails: ILead[] = leads.map((lead: any) => {
       return {
         leadId: lead.leadId,
@@ -232,6 +241,14 @@ export const enrollLeadsByTag = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: "CampaignId, tagId and workspaceId are required",
+      });
+    }
+
+    const user = await User.findById(userId).select("emailCredits");
+    if (!user || user.emailCredits <= 0) {
+      return res.status(403).json({
+        success: false,
+        message: "You have exhausted your email credits. Please buy more credits to continue.",
       });
     }
 

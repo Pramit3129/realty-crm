@@ -89,6 +89,8 @@ class UserService {
             subscriptionPlan: planName,
             isSubscribed: user.isSubscribed,
             stripeCustomerId: user.stripeCustomerId,
+            hasSMSCampaignEnabled: user.hasSMSCampaignEnabled,
+            emailCredits: user.emailCredits,
             website: user.website,
         };
     }

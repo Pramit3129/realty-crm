@@ -3,6 +3,7 @@ import { emailIntegrationService } from "./emailIntegration.service";
 import type { AuthenticatedRequest } from "../../shared/middleware/requireAuth";
 import { EmailIntegration } from "./emailIntegration.model";
 import { Lead } from "../lead/lead.model";
+import { User } from "../user/user.model";
 import { OAuth2Client } from "google-auth-library";
 import { env } from "../../shared/config/env.config";
 import { CommunicationService } from "../communication/communication.service";
@@ -219,7 +220,18 @@ export async function sendEmailToLead(
       return;
     }
 
+    const user = await User.findById(userId).select("emailCredits");
+    if (!user || user.emailCredits <= 0) {
+      res.status(403).json({
+        message: "You have exhausted your email credits. Please buy more credits to continue.",
+      });
+      return;
+    }
+
     await emailIntegrationService.sendEmail(userId, lead.email, subject, body);
+
+    // Decrement credits
+    await User.findByIdAndUpdate(userId, { $inc: { emailCredits: -1 } });
 
     const integration = await EmailIntegration.findOne({ userId }).select(
       "email",
