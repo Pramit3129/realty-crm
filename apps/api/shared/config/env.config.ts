@@ -62,6 +62,7 @@ export const env = {
   RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
   REPLY_TO_EMAIL: process.env.REPLY_TO_EMAIL,
   EMAIL_FROM: process.env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
+  CAMPAIGN_EMAIL_DOMAIN: process.env.CAMPAIGN_EMAIL_DOMAIN || "realty-crm.com",
 
   // Twilio
   TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,

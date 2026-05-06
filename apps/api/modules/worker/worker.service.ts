@@ -21,7 +21,7 @@ export class WorkerService {
             {
                 path: "campaignId",
                 select: "userId status",
-                populate: { path: "userId", select: "email emailCredits" }
+                populate: { path: "userId", select: "name email emailCredits" }
             }
         ]).lean();
 
@@ -81,8 +81,12 @@ export class WorkerService {
 
             const compiledHtml = step.body?.replace("{{name}}", lead.name || "there") + unsubscribeLink + trackingPixel;
 
+            const fromName = user?.name || "CRM";
+            const emailSlug = (user?.name || "user").toLowerCase().replace(/\s+/g, "_");
+            const fromEmail = `${emailSlug}@${env.CAMPAIGN_EMAIL_DOMAIN}`;
+
             return {
-                from: env.EMAIL_FROM || "CRM <noreply@yourdomain.com>",
+                from: `${fromName} <${fromEmail}>`,
                 to: [lead.email],
                 subject: step.subject,
                 html: compiledHtml,
