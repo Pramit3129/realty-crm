@@ -86,7 +86,7 @@ export class WorkerService {
                 to: [lead.email],
                 subject: step.subject,
                 html: compiledHtml,
-                reply_to: systemReplyEmail,
+                replyTo: userEmail || systemReplyEmail,
                 ...(userEmail && {
                     cc: [userEmail]
                 })
