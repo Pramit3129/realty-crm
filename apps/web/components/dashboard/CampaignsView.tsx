@@ -23,6 +23,8 @@ import {
   CheckSquare,
   Square,
   Sparkles,
+  Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +84,8 @@ export default function CampaignsView({
   const [showNewForm, setShowNewForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCanvasId, setShowCanvasId] = useState<string | null>(null);
+  const [emailCredits, setEmailCredits] = useState<number | null>(null);
+  const [showNoCreditsModal, setShowNoCreditsModal] = useState(false);
 
   // new-campaign form
   const [newName, setNewName] = useState("");
@@ -109,6 +113,29 @@ export default function CampaignsView({
   useEffect(() => {
     fetchCampaigns();
   }, [fetchCampaigns]);
+
+  // ── Fetch email credits ───────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api("/user/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const credits =
+          typeof data?.user?.emailCredits === "number"
+            ? data.user.emailCredits
+            : 0;
+        setEmailCredits(credits);
+      } catch {
+        /* silent */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Keep selected campaign in sync after refetch
   useEffect(() => {
@@ -216,6 +243,12 @@ export default function CampaignsView({
             <h1 className="text-sm font-semibold text-foreground">Campaigns</h1>
           </div>
           <div className="flex items-center gap-2">
+            {emailCredits !== null && (
+              <CreditsBadge
+                credits={emailCredits}
+                onClick={() => setShowNoCreditsModal(true)}
+              />
+            )}
             {selectedCampaignIds.size > 0 && (
               <Button
                 size="sm"
@@ -233,7 +266,13 @@ export default function CampaignsView({
             )}
             <Button
               size="sm"
-              onClick={() => setShowNewForm(true)}
+              onClick={() => {
+                if (emailCredits !== null && emailCredits <= 0) {
+                  setShowNoCreditsModal(true);
+                  return;
+                }
+                setShowNewForm(true);
+              }}
               className="h-7 gap-1.5 rounded-md px-3 text-xs"
             >
               <Plus className="h-3 w-3" />
@@ -343,7 +382,13 @@ export default function CampaignsView({
                 <tr>
                   <td colSpan={5}>
                     <button
-                      onClick={() => setShowNewForm(true)}
+                      onClick={() => {
+                        if (emailCredits !== null && emailCredits <= 0) {
+                          setShowNoCreditsModal(true);
+                          return;
+                        }
+                        setShowNewForm(true);
+                      }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground/60 transition-colors hover:bg-white/[0.02] hover:text-muted-foreground"
                     >
                       <Plus className="h-3 w-3" />
@@ -478,6 +523,117 @@ export default function CampaignsView({
             onClose={() => setShowCanvasId(null)}
           />
         )}
+
+      {/* ── No Credits Modal ────────────────────────────────────────── */}
+      {showNoCreditsModal && (
+        <NoCreditsModal onClose={() => setShowNoCreditsModal(false)} />
+      )}
+    </div>
+  );
+}
+
+// ── Credits Badge ──────────────────────────────────────────────────────
+function CreditsBadge({
+  credits,
+  onClick,
+}: {
+  credits: number;
+  onClick: () => void;
+}) {
+  const empty = credits <= 0;
+  const low = credits > 0 && credits < 50;
+
+  const tone = empty
+    ? "border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/15"
+    : low
+      ? "border-amber-500/25 bg-amber-500/10 text-amber-400 hover:bg-amber-500/15"
+      : "border-white/[0.08] bg-white/[0.04] text-foreground hover:bg-white/[0.07]";
+
+  const iconTone = empty
+    ? "text-red-400"
+    : low
+      ? "text-amber-400"
+      : "text-blue-400";
+
+  return (
+    <button
+      type="button"
+      onClick={empty ? onClick : undefined}
+      title={
+        empty
+          ? "No email credits — click for details"
+          : `${credits.toLocaleString()} email credits remaining`
+      }
+      className={`flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors ${tone} ${empty ? "cursor-pointer" : "cursor-default"}`}
+    >
+      <Zap className={`h-3 w-3 ${iconTone}`} />
+      <span className="tabular-nums">{credits.toLocaleString()}</span>
+      <span className="text-muted-foreground/70">credits</span>
+    </button>
+  );
+}
+
+// ── No Credits Modal ───────────────────────────────────────────────────
+function NoCreditsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-xl border border-white/[0.08] bg-[#121212] p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-red-500/25 bg-red-500/10">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Out of email credits
+              </h2>
+              <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+                Top up to keep campaigns running
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground transition hover:bg-white/[0.04] hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            You don&apos;t have any email credits left. New campaigns and email
+            sends are paused until you add more credits to your account.
+          </p>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="h-8 text-xs"
+          >
+            Dismiss
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              window.location.href = "/dashboard?view=settings";
+            }}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <Zap className="h-3 w-3" />
+            Get credits
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
