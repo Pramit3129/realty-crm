@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Check,
   Upload,
+  Download,
   Trash2,
   CheckSquare,
   User,
@@ -2061,7 +2062,27 @@ function CsvUploadModal({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
+  const csvTemplate = Papa.unparse([
+    {
+      name: "John Doe",
+      email: "john@example.com",
+      phone: "+1 5551234567",
+      city: "New York",
+      source: "Website",
+    },
+  ]);
+
   if (!open) return null;
+
+  function handleDownloadTemplate() {
+    const blob = new Blob([csvTemplate], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "lead-import-template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function handleUpload() {
     if (!file) {
@@ -2156,9 +2177,21 @@ function CsvUploadModal({
             Upload a CSV file to import multiple leads at once.
           </p>
           <div className="rounded-lg border border-white/[0.04] bg-white/[0.02] p-4">
-            <p className="mb-2 text-xs font-medium text-foreground">
-              Required CSV Format:
-            </p>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-xs font-medium text-foreground">
+                Required CSV Format:
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadTemplate}
+                className="h-7 gap-1.5 border-white/[0.08] bg-transparent px-2.5 text-[11px] hover:bg-white/[0.06]"
+              >
+                <Download className="h-3 w-3" />
+                Download sample
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2 font-mono text-[11px] text-muted-foreground">
               <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
                 name
