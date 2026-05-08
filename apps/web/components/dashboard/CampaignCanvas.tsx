@@ -38,6 +38,24 @@ interface CampaignStep {
   stepOrder: number;
 }
 
+const DEFAULT_WELCOME_SUBJECT = "Welcome Demo Email";
+const DEFAULT_WELCOME_BODY =
+  "Hi {{name}},\n\nThis is a sample welcome email for the campaign. Feel free to edit or replace this text.";
+const DEFAULT_WELCOME_DELAY_DAYS = 0;
+
+function isDefaultWelcomeStep(step: Partial<CampaignStep> | null | undefined) {
+  return (
+    !!step &&
+    step.subject === DEFAULT_WELCOME_SUBJECT &&
+    step.body === DEFAULT_WELCOME_BODY &&
+    (step.delayDays ?? 0) === DEFAULT_WELCOME_DELAY_DAYS
+  );
+}
+
+function getDefaultStepInitKey(campaignId: string) {
+  return `campaign-default-step-init:${campaignId}`;
+}
+
 // --- Custom Nodes ---
 
 // Action Node (Step)
@@ -144,10 +162,17 @@ export default function CampaignCanvas({
       if (stepsRes.ok) {
         const data = await stepsRes.json();
         let fetchedSteps = data.data || [];
+        const defaultStepInitKey = getDefaultStepInitKey(campaignId);
 
         // Auto-create a demo step if none exist
-        if (fetchedSteps.length === 0 && !isCreatingDefault.current) {
+        if (
+          fetchedSteps.length === 0 &&
+          !isCreatingDefault.current &&
+          typeof window !== "undefined" &&
+          !window.sessionStorage.getItem(defaultStepInitKey)
+        ) {
           isCreatingDefault.current = true;
+          window.sessionStorage.setItem(defaultStepInitKey, "1");
           try {
             const createRes = await api("/campaign/step/create", {
               method: "POST",
@@ -156,9 +181,9 @@ export default function CampaignCanvas({
               },
               body: JSON.stringify({
                 campaignId,
-                subject: "Welcome Demo Email",
-                body: "Hi {{name}},\n\nThis is a sample welcome email for the campaign. Feel free to edit or replace this text.",
-                delayDays: 0,
+                subject: DEFAULT_WELCOME_SUBJECT,
+                body: DEFAULT_WELCOME_BODY,
+                delayDays: DEFAULT_WELCOME_DELAY_DAYS,
                 stepOrder: 1,
               }),
             });
@@ -170,11 +195,45 @@ export default function CampaignCanvas({
             }
           } catch (e) {
             console.error(e);
+            window.sessionStorage.removeItem(defaultStepInitKey);
           } finally {
             isCreatingDefault.current = false;
           }
         }
-        setSteps(fetchedSteps.sort((a: any, b: any) => a.stepOrder - b.stepOrder));
+
+        const sortedSteps = [...fetchedSteps].sort(
+          (a: any, b: any) => a.stepOrder - b.stepOrder,
+        );
+        const defaultWelcomeSteps = sortedSteps.filter((step: CampaignStep) =>
+          isDefaultWelcomeStep(step),
+        );
+
+        if (defaultWelcomeSteps.length > 1) {
+          const [keepStep, ...duplicateSteps] = defaultWelcomeSteps;
+          fetchedSteps = sortedSteps.filter(
+            (step: CampaignStep) =>
+              !isDefaultWelcomeStep(step) || step._id === keepStep._id,
+          );
+
+          Promise.all(
+            duplicateSteps.map((duplicateStep: CampaignStep) =>
+              api(`/campaign/step/${duplicateStep._id}`, { method: "DELETE" }),
+            ),
+          ).catch((error) => {
+            console.error("Failed to clean duplicate welcome steps", error);
+          });
+        } else {
+          fetchedSteps = sortedSteps;
+        }
+
+        if (
+          fetchedSteps.length > 0 &&
+          typeof window !== "undefined"
+        ) {
+          window.sessionStorage.removeItem(defaultStepInitKey);
+        }
+
+        setSteps(fetchedSteps);
       }
 
       if (progressRes.ok) {
@@ -590,6 +649,35 @@ function StepEditorModal({
         });
 
         if (res.ok) {
+          if (isEditing && isDefaultWelcomeStep(step)) {
+            try {
+              const stepsRes = await api(`/campaign/${campaignId}/steps`);
+              if (stepsRes.ok) {
+                const stepsData = await stepsRes.json();
+                const staleDefaultSteps = (stepsData.data || []).filter(
+                  (candidate: CampaignStep) =>
+                    candidate._id !== step._id &&
+                    isDefaultWelcomeStep(candidate),
+                );
+
+                if (staleDefaultSteps.length > 0) {
+                  await Promise.all(
+                    staleDefaultSteps.map((candidate: CampaignStep) =>
+                      api(`/campaign/step/${candidate._id}`, {
+                        method: "DELETE",
+                      }),
+                    ),
+                  );
+                }
+              }
+            } catch (cleanupError) {
+              console.error(
+                "Failed to remove stale default welcome step",
+                cleanupError,
+              );
+            }
+          }
+
           onSuccess();
         } else {
           const resData = await res.json();
