@@ -198,15 +198,59 @@ export function timeAgo(dateStr: string) {
   return `about ${months} month${months > 1 ? "s" : ""} ago`;
 }
 
+// ── Name parsing ──────────────────────────────────────────────────────
+// Stored `name` is a single string. Client-side we split it into
+// title / firstName / lastName for display + structured input, and
+// re-join when persisting back.
+const KNOWN_TITLES = new Set([
+  "mr", "mrs", "ms", "miss", "mx", "dr", "prof",
+  "sir", "madam", "mdm", "rev", "fr", "br",
+  "capt", "maj", "lt", "col", "gen", "hon",
+  "lord", "lady",
+]);
+
+export function parseName(full: string | undefined | null): {
+  title: string;
+  firstName: string;
+  lastName: string;
+} {
+  const trimmed = (full || "").trim();
+  if (!trimmed) return { title: "", firstName: "", lastName: "" };
+  const parts = trimmed.split(/\s+/);
+  const head = parts[0].replace(/\.$/, "").toLowerCase();
+  let title = "";
+  let rest = parts;
+  if (KNOWN_TITLES.has(head) && parts.length > 1) {
+    title = parts[0].replace(/\.$/, "");
+    rest = parts.slice(1);
+  }
+  const firstName = rest[0] || "";
+  const lastName = rest.slice(1).join(" ");
+  return { title, firstName, lastName };
+}
+
+export function joinName(
+  title: string,
+  firstName: string,
+  lastName: string,
+): string {
+  const t = title.trim();
+  const titlePart = t ? (t.endsWith(".") ? t : `${t}.`) : "";
+  return [titlePart, firstName.trim(), lastName.trim()]
+    .filter(Boolean)
+    .join(" ");
+}
+
 const TABLE_COLUMNS = [
-  { key: "name", label: "Name", icon: Users },
+  { key: "title", label: "Title", icon: Users },
+  { key: "firstName", label: "First Name", icon: Users },
+  { key: "lastName", label: "Last Name", icon: Users },
   { key: "email", label: "Email", icon: Mail },
   { key: "phone", label: "Phone", icon: Phone },
-  { key: "city", label: "City", icon: Globe }, // Use Globe for City/Location
-  { key: "realtor", label: "Agent", icon: Users }, // New column for OWNER view
+  { key: "source", label: "Source", icon: Globe },
   { key: "status", label: "Status", icon: Tag },
   { key: "tags", label: "Tags", icon: TagsIcon },
-  { key: "source", label: "Source", icon: Globe },
+  { key: "realtor", label: "Agent", icon: Users },
   { key: "createdAt", label: "Created", icon: Clock },
 ];
 
@@ -250,7 +294,9 @@ export default function LeadsView({
   const [assigningTag, setAssigningTag] = useState(false);
 
   // new-lead form
-  const [newName, setNewName] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newCountryCode, setNewCountryCode] = useState("+1");
   const [newPhone, setNewPhone] = useState("");
@@ -452,8 +498,8 @@ export default function LeadsView({
 
   // ── Create lead ───────────────────────────────────────────────────
   async function handleCreate() {
-    if (!newName.trim()) {
-      setFormError("Name is required");
+    if (!newFirstName.trim()) {
+      setFormError("First name is required");
       return;
     }
     const extractEmail = (input: string) => {
@@ -466,13 +512,14 @@ export default function LeadsView({
       const fullPhone = newPhone.trim()
         ? `${newCountryCode} ${newPhone.trim()}`
         : "";
+      const fullName = joinName(newTitle, newFirstName, newLastName);
       const res = await api("/lead/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: newName.trim(),
+          name: fullName,
           email: extractEmail(newEmail),
           phone: fullPhone,
           city: newCity.trim(),
@@ -485,7 +532,9 @@ export default function LeadsView({
         setFormError(data.message || "Failed to create lead");
         return;
       }
-      setNewName("");
+      setNewTitle("");
+      setNewFirstName("");
+      setNewLastName("");
       setNewEmail("");
       setNewPhone("");
       setNewCity("");
@@ -521,10 +570,21 @@ export default function LeadsView({
   async function saveInlineEdit(leadId: string, field: string, value: string) {
     setEditingCell(null);
     try {
+      let finalField = field;
       let finalValue = value;
       if (field === "email") {
         const match = value.match(/<(.+)>$/);
         finalValue = match ? match[1] : value.trim();
+      }
+      // Title / first name / last name are virtual — they're stored as a
+      // single `name` string. Splice the new value into the parsed parts
+      // and persist as `name`.
+      if (field === "title" || field === "firstName" || field === "lastName") {
+        const lead = leads.find((l) => l._id === leadId);
+        const parsed = parseName(lead?.name || "");
+        const next = { ...parsed, [field]: value };
+        finalField = "name";
+        finalValue = joinName(next.title, next.firstName, next.lastName);
       }
 
       const res = await api(`/lead/details/${leadId}`, {
@@ -532,7 +592,7 @@ export default function LeadsView({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ [field]: finalValue }),
+        body: JSON.stringify({ [finalField]: finalValue }),
       });
       if (res.ok) fetchLeads();
     } catch {
@@ -817,7 +877,7 @@ export default function LeadsView({
               {/* Loading State */}
               {loading && (
                 <tr>
-                  <td colSpan={isOwner ? 10 : 9} className="py-12">
+                  <td colSpan={(isOwner ? TABLE_COLUMNS.length : TABLE_COLUMNS.length - 1) + 1} className="py-12">
                     <ContentLoader loading={loading} text="Fetching leads..." />
                   </td>
                 </tr>
@@ -855,25 +915,43 @@ export default function LeadsView({
                       />
                     </td>
 
-                    {/* Name */}
-                    <td className="px-4 py-2.5">
-                      <EditableNameCell
-                        lead={lead}
-                        editing={
+                    {/* Title / First / Last (split from stored `name`) */}
+                    {(() => {
+                      const parsed = parseName(lead.name);
+                      const cell = (
+                        field: "title" | "firstName" | "lastName",
+                      ) => {
+                        const value = parsed[field];
+                        const isEditing =
                           canEdit &&
                           editingCell?.leadId === lead._id &&
-                          editingCell?.field === "name"
-                        }
-                        editValue={editValue}
-                        onStart={() =>
-                          canEdit && startEditing(lead._id, "name", lead.name)
-                        }
-                        onChange={setEditValue}
-                        onSave={(v) => saveInlineEdit(lead._id, "name", v)}
-                        onCancel={() => setEditingCell(null)}
-                        canEdit={canEdit}
-                      />
-                    </td>
+                          editingCell?.field === field;
+                        return (
+                          <td className="px-4 py-2.5" key={field}>
+                            <EditableTextCell
+                              value={value}
+                              editing={isEditing}
+                              editValue={editValue}
+                              onStart={() =>
+                                canEdit &&
+                                startEditing(lead._id, field, value)
+                              }
+                              onChange={setEditValue}
+                              onSave={(v) => saveInlineEdit(lead._id, field, v)}
+                              onCancel={() => setEditingCell(null)}
+                              canEdit={canEdit}
+                            />
+                          </td>
+                        );
+                      };
+                      return (
+                        <>
+                          {cell("title")}
+                          {cell("firstName")}
+                          {cell("lastName")}
+                        </>
+                      );
+                    })()}
 
                     {/* Email */}
                     <td className="px-4 py-2.5">
@@ -915,44 +993,26 @@ export default function LeadsView({
                       />
                     </td>
 
-                    {/* City */}
+                    {/* Source */}
                     <td className="px-4 py-2.5">
                       <EditableTextCell
-                        value={lead.city || ""}
+                        value={lead.source}
                         editing={
                           canEdit &&
                           editingCell?.leadId === lead._id &&
-                          editingCell?.field === "city"
+                          editingCell?.field === "source"
                         }
                         editValue={editValue}
                         onStart={() =>
                           canEdit &&
-                          startEditing(lead._id, "city", lead.city || "")
+                          startEditing(lead._id, "source", lead.source)
                         }
                         onChange={setEditValue}
-                        onSave={(v) => saveInlineEdit(lead._id, "city", v)}
+                        onSave={(v) => saveInlineEdit(lead._id, "source", v)}
                         onCancel={() => setEditingCell(null)}
                         canEdit={canEdit}
                       />
                     </td>
-
-                    {/* Realtor/Agent (Show only to OWNER) */}
-                    {isOwner && (
-                      <td className="px-4 py-2.5">
-                        {lead.realtorId ? (
-                          <div className="flex items-center gap-1.5 tooltip-trigger">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-[12px] truncate max-w-[80px]">
-                              {lead.realtorId.name}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-[12px]">
-                            Unknown
-                          </span>
-                        )}
-                      </td>
-                    )}
 
                     {/* Status */}
                     <td
@@ -991,26 +1051,23 @@ export default function LeadsView({
                       />
                     </td>
 
-                    {/* Source */}
-                    <td className="px-4 py-2.5">
-                      <EditableTextCell
-                        value={lead.source}
-                        editing={
-                          canEdit &&
-                          editingCell?.leadId === lead._id &&
-                          editingCell?.field === "source"
-                        }
-                        editValue={editValue}
-                        onStart={() =>
-                          canEdit &&
-                          startEditing(lead._id, "source", lead.source)
-                        }
-                        onChange={setEditValue}
-                        onSave={(v) => saveInlineEdit(lead._id, "source", v)}
-                        onCancel={() => setEditingCell(null)}
-                        canEdit={canEdit}
-                      />
-                    </td>
+                    {/* Realtor/Agent (Show only to OWNER) */}
+                    {isOwner && (
+                      <td className="px-4 py-2.5">
+                        {lead.realtorId ? (
+                          <div className="flex items-center gap-1.5 tooltip-trigger">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-[12px] truncate max-w-[80px]">
+                              {lead.realtorId.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-[12px]">
+                            Unknown
+                          </span>
+                        )}
+                      </td>
+                    )}
 
                     {/* Created At */}
                     <td className="px-4 py-2.5 text-[12px] text-muted-foreground">
@@ -1022,7 +1079,7 @@ export default function LeadsView({
 
               {/* ── "+ Add New" row — appears BELOW existing rows ─── */}
               <tr>
-                <td colSpan={isOwner ? 10 : 9}>
+                <td colSpan={(isOwner ? TABLE_COLUMNS.length : TABLE_COLUMNS.length - 1) + 1}>
                   <button
                     onClick={() => setShowNewForm(true)}
                     className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground/60 transition-colors hover:bg-white/[0.02] hover:text-muted-foreground"
@@ -1039,7 +1096,7 @@ export default function LeadsView({
                 filteredLeads.length === 0 && (
                   <tr>
                     <td
-                      colSpan={isOwner ? 10 : 9}
+                      colSpan={(isOwner ? TABLE_COLUMNS.length : TABLE_COLUMNS.length - 1) + 1}
                       className="px-4 py-10 text-center"
                     >
                       <p className="text-sm text-muted-foreground">
@@ -1058,7 +1115,7 @@ export default function LeadsView({
               {/* Empty state */}
               {!loading && leads.length === 0 && !showNewForm && (
                 <tr>
-                  <td colSpan={isOwner ? 10 : 9} className="px-4 py-16 text-center">
+                  <td colSpan={(isOwner ? TABLE_COLUMNS.length : TABLE_COLUMNS.length - 1) + 1} className="px-4 py-16 text-center">
                     {loading ? (
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
@@ -1134,15 +1191,37 @@ export default function LeadsView({
             <DialogTitle>Add New Lead</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                placeholder="Lead name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="bg-white/[0.04]"
-              />
+            <div className="grid grid-cols-[90px_1fr_1fr] gap-2">
+              <div className="grid gap-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  placeholder="Mr."
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="bg-white/[0.04]"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  value={newFirstName}
+                  onChange={(e) => setNewFirstName(e.target.value)}
+                  className="bg-white/[0.04]"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  value={newLastName}
+                  onChange={(e) => setNewLastName(e.target.value)}
+                  className="bg-white/[0.04]"
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
@@ -1291,6 +1370,7 @@ function EditableNameCell({
       />
     );
   }
+  const { title, firstName, lastName } = parseName(lead.name);
   return (
     <span
       className={`flex items-center gap-2 font-medium text-foreground ${canEdit === false ? "" : "cursor-text"}`}
@@ -1301,7 +1381,19 @@ function EditableNameCell({
       }}
     >
       <User className="h-4 w-4 text-muted-foreground" />
-      {lead.name}
+      <span className="flex items-baseline gap-1.5">
+        <span
+          className={`text-[10px] uppercase tracking-wide ${
+            title ? "text-muted-foreground" : "text-muted-foreground/30"
+          }`}
+        >
+          {title ? (title.endsWith(".") ? title : `${title}.`) : "---"}
+        </span>
+        <span>{firstName}</span>
+        {lastName && (
+          <span className="text-muted-foreground">{lastName}</span>
+        )}
+      </span>
     </span>
   );
 }
@@ -1437,7 +1529,7 @@ function StatusDropdown({
   return (
     <div className="relative inline-block">
       <span
-        className={`flex h-[22px] cursor-pointer items-center gap-1.5 rounded-full pl-1.5 pr-2.5 text-[11px] font-medium transition-colors hover:brightness-110 ${disabled ? "opacity-70 pointer-events-none" : ""}`}
+        className={`inline-flex h-[22px] w-fit cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full pl-1.5 pr-2.5 text-[11px] font-medium transition-colors hover:brightness-110 ${disabled ? "opacity-70 pointer-events-none" : ""}`}
         style={{
           backgroundColor: style.bg,
           color: style.text,
@@ -1638,10 +1730,30 @@ function DetailPanel({
           <X className="h-4 w-4" />
         </button>
         <span className="flex h-6 w-6 items-center justify-center rounded bg-violet-600/80 text-[10px] font-bold text-white">
-          {lead.name.charAt(0).toUpperCase()}
+          {(() => {
+            const { firstName } = parseName(lead.name);
+            return (firstName || lead.name).charAt(0).toUpperCase();
+          })()}
         </span>
         <div className="flex-1 truncate">
-          <p className="text-sm font-medium text-foreground">{lead.name}</p>
+          {(() => {
+            const { title, firstName, lastName } = parseName(lead.name);
+            return (
+              <p className="text-sm font-medium text-foreground flex items-baseline gap-1.5">
+                <span
+                  className={`text-[10px] uppercase tracking-wide ${
+                    title ? "text-muted-foreground" : "text-muted-foreground/30"
+                  }`}
+                >
+                  {title ? (title.endsWith(".") ? title : `${title}.`) : "---"}
+                </span>
+                <span>{firstName}</span>
+                {lastName && (
+                  <span className="text-muted-foreground">{lastName}</span>
+                )}
+              </p>
+            );
+          })()}
           <p className="text-[11px] text-muted-foreground">
             Created {timeAgo(lead.createdAt)}
           </p>
@@ -2064,11 +2176,22 @@ function CsvUploadModal({
 
   const csvTemplate = Papa.unparse([
     {
-      name: "John Doe",
+      title: "Mr.",
+      firstName: "John",
+      lastName: "Doe",
       email: "john@example.com",
       phone: "+1 5551234567",
       city: "New York",
       source: "Website",
+    },
+    {
+      title: "",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com",
+      phone: "+1 5559876543",
+      city: "Boston",
+      source: "Referral",
     },
   ]);
 
@@ -2100,14 +2223,26 @@ function CsvUploadModal({
         // Map row headers (case-insensitive) to expected keys
         const leads = rows
           .map((r: any) => {
-            const getVal = (key: string) => {
-              const foundKey = Object.keys(r).find(
-                (k) => k.toLowerCase() === key.toLowerCase(),
-              );
-              return foundKey ? r[foundKey]?.trim() : "";
+            const getVal = (...keys: string[]) => {
+              for (const key of keys) {
+                const foundKey = Object.keys(r).find(
+                  (k) => k.toLowerCase() === key.toLowerCase(),
+                );
+                if (foundKey && r[foundKey]?.trim()) return r[foundKey].trim();
+              }
+              return "";
             };
+            const title = getVal("title");
+            const firstName = getVal("firstName", "fname", "first name", "first_name");
+            const lastName = getVal("lastName", "lname", "last name", "last_name");
+            // Back-compat: fall back to a single `name` column if the new
+            // split columns aren't supplied.
+            const fallbackName = getVal("name");
+            const name = firstName || lastName
+              ? joinName(title, firstName, lastName)
+              : fallbackName;
             return {
-              name: getVal("name"),
+              name,
               email: getVal("email"),
               phone: getVal("phone"),
               city: getVal("city"),
@@ -2119,7 +2254,7 @@ function CsvUploadModal({
 
         if (leads.length === 0) {
           setError(
-            "No valid leads found. Please ensure your CSV has a 'name' column.",
+            "No valid leads found. Provide either 'firstName' (with optional 'title' / 'lastName') or a single 'name' column.",
           );
           setUploading(false);
           return;
@@ -2194,7 +2329,13 @@ function CsvUploadModal({
             </div>
             <div className="flex flex-wrap gap-2 font-mono text-[11px] text-muted-foreground">
               <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
-                name
+                title
+              </span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
+                firstName
+              </span>
+              <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
+                lastName
               </span>
               <span className="rounded bg-white/[0.06] px-1.5 py-0.5">
                 email
@@ -2210,8 +2351,8 @@ function CsvUploadModal({
               </span>
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground/60">
-              Only 'name' is strictly required, but including headers is
-              mandatory.
+              Only 'firstName' is strictly required. 'title' is optional —
+              leave blank if not applicable. Headers are mandatory.
             </p>
           </div>
 
