@@ -183,6 +183,55 @@ const COUNTRY_CODES = [
   { code: "+39", label: "IT" },
 ];
 
+// ── Phone formatting ──────────────────────────────────────────────────
+const PHONE_FORMATS: Record<string, { maxDigits: number; mask: (d: string) => string }> = {
+  "+1":  { maxDigits: 10, mask: (d) => { if (!d) return ""; const p1=d.slice(0,3),p2=d.slice(3,6),p3=d.slice(6,10); if(d.length<=3)return `(${p1}`; if(d.length<=6)return `(${p1}) ${p2}`; return `(${p1}) ${p2}-${p3}`; } },
+  "+44": { maxDigits: 10, mask: (d) => { if (!d) return ""; const p1=d.slice(0,4),p2=d.slice(4,10); return d.length<=4?p1:`${p1} ${p2}`; } },
+  "+91": { maxDigits: 10, mask: (d) => { if (!d) return ""; const p1=d.slice(0,5),p2=d.slice(5,10); return d.length<=5?p1:`${p1} ${p2}`; } },
+  "+61": { maxDigits: 9,  mask: (d) => { if (!d) return ""; const p1=d.slice(0,4),p2=d.slice(4,7),p3=d.slice(7,9); if(d.length<=4)return p1; if(d.length<=7)return `${p1} ${p2}`; return `${p1} ${p2} ${p3}`; } },
+  "+65": { maxDigits: 8,  mask: (d) => { if (!d) return ""; const p1=d.slice(0,4),p2=d.slice(4,8); return d.length<=4?p1:`${p1} ${p2}`; } },
+  "+33": { maxDigits: 9,  mask: (d) => { if (!d) return ""; return [d.slice(0,1),d.slice(1,3),d.slice(3,5),d.slice(5,7),d.slice(7,9)].filter(Boolean).join(" "); } },
+  "+49": { maxDigits: 11, mask: (d) => d },
+  "+81": { maxDigits: 10, mask: (d) => d },
+  "+86": { maxDigits: 11, mask: (d) => d },
+  "+971":{ maxDigits: 9,  mask: (d) => d },
+  "+55": { maxDigits: 11, mask: (d) => d },
+  "+52": { maxDigits: 10, mask: (d) => d },
+  "+27": { maxDigits: 9,  mask: (d) => d },
+  "+82": { maxDigits: 10, mask: (d) => d },
+  "+39": { maxDigits: 10, mask: (d) => d },
+};
+
+const PHONE_PLACEHOLDERS: Record<string, string> = {
+  "+1":  "(555) 555-5555",
+  "+44": "7911 123456",
+  "+91": "98765 43210",
+  "+61": "0412 345 67",
+  "+65": "9123 4567",
+  "+33": "6 12 34 56 78",
+};
+
+function formatPhoneDigits(digits: string, code: string): string {
+  return PHONE_FORMATS[code]?.mask(digits) ?? digits;
+}
+
+function getMaxPhoneDigits(code: string): number {
+  return PHONE_FORMATS[code]?.maxDigits ?? 15;
+}
+
+function stripPhoneFormatting(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+function parseStoredPhone(fullPhone: string): { code: string; digits: string } {
+  for (const cc of COUNTRY_CODES) {
+    if (fullPhone.startsWith(cc.code + " ")) {
+      return { code: cc.code, digits: fullPhone.slice(cc.code.length + 1).replace(/\D/g, "") };
+    }
+  }
+  return { code: "+1", digits: fullPhone.replace(/\D/g, "") };
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────
 export function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -510,7 +559,7 @@ export default function LeadsView({
     setSubmitting(true);
     try {
       const fullPhone = newPhone.trim()
-        ? `${newCountryCode} ${newPhone.trim()}`
+        ? `${newCountryCode} ${stripPhoneFormatting(newPhone)}`
         : "";
       const fullName = joinName(newTitle, newFirstName, newLastName);
       const res = await api("/lead/create", {
@@ -1238,13 +1287,20 @@ export default function LeadsView({
               <div className="flex gap-2">
                 <CountryCodeSelect
                   value={newCountryCode}
-                  onChange={setNewCountryCode}
+                  onChange={(code) => {
+                    setNewCountryCode(code);
+                    const digits = stripPhoneFormatting(newPhone).slice(0, getMaxPhoneDigits(code));
+                    setNewPhone(formatPhoneDigits(digits, code));
+                  }}
                 />
                 <Input
                   id="phone"
-                  placeholder="Phone number"
+                  placeholder={PHONE_PLACEHOLDERS[newCountryCode] ?? "Phone number"}
                   value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
+                  onChange={(e) => {
+                    const digits = stripPhoneFormatting(e.target.value).slice(0, getMaxPhoneDigits(newCountryCode));
+                    setNewPhone(formatPhoneDigits(digits, newCountryCode));
+                  }}
                   className="bg-white/[0.04]"
                 />
               </div>
@@ -1903,9 +1959,7 @@ function HomeTab({
           value={lead.email}
           onSave={(v) => onUpdate("email", v)}
         />
-        <EditableDetailRow
-          icon={Phone}
-          label="Phone"
+        <PhoneDetailRow
           value={lead.phone}
           onSave={(v) => onUpdate("phone", v)}
         />
@@ -2039,6 +2093,96 @@ function EditableDetailRow({
         }}
       >
         {value || <span className="text-muted-foreground/30">{label}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── Phone detail row (country select + masked input) ─────────────────
+function PhoneDetailRow({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [code, setCode] = useState("+1");
+  const [phoneInput, setPhoneInput] = useState("");
+
+  function enterEdit() {
+    const p = parseStoredPhone(value);
+    setCode(p.code);
+    setPhoneInput(formatPhoneDigits(p.digits, p.code));
+    setEditing(true);
+  }
+
+  function handleCodeChange(newCode: string) {
+    setCode(newCode);
+    const digits = stripPhoneFormatting(phoneInput).slice(0, getMaxPhoneDigits(newCode));
+    setPhoneInput(formatPhoneDigits(digits, newCode));
+  }
+
+  function handlePhoneInput(raw: string) {
+    const digits = stripPhoneFormatting(raw).slice(0, getMaxPhoneDigits(code));
+    setPhoneInput(formatPhoneDigits(digits, code));
+  }
+
+  function save() {
+    setEditing(false);
+    const digits = stripPhoneFormatting(phoneInput);
+    const stored = digits ? `${code} ${digits}` : "";
+    if (stored !== value) onSave(stored);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+  }
+
+  const displayVal = (() => {
+    if (!value) return "";
+    const { code: c, digits } = parseStoredPhone(value);
+    const fmt = formatPhoneDigits(digits, c);
+    return `${c} ${fmt}`;
+  })();
+
+  if (editing) {
+    return (
+      <div className="flex items-start gap-3">
+        <div className="flex w-24 shrink-0 items-center gap-1.5 pt-1.5">
+          <Phone className="h-3 w-3 text-muted-foreground/60" />
+          <span className="text-[12px] text-muted-foreground">Phone</span>
+        </div>
+        <div className="flex flex-1 gap-1">
+          <CountryCodeSelect value={code} onChange={handleCodeChange} />
+          <Input
+            value={phoneInput}
+            onChange={(e) => handlePhoneInput(e.target.value)}
+            onBlur={save}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") cancelEdit();
+            }}
+            placeholder={PHONE_PLACEHOLDERS[code] ?? "Phone number"}
+            className="h-7 flex-1 border-0 bg-white/[0.06] px-2 text-[12px] shadow-none focus-visible:ring-1 focus-visible:ring-white/10"
+            autoFocus
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-3">
+      <div className="flex w-24 shrink-0 items-center gap-1.5 pt-0.5">
+        <Phone className="h-3 w-3 text-muted-foreground/60" />
+        <span className="text-[12px] text-muted-foreground">Phone</span>
+      </div>
+      <div
+        className="flex-1 cursor-text rounded px-1 py-0.5 text-[12px] text-foreground transition-colors hover:bg-white/[0.04]"
+        onClick={enterEdit}
+      >
+        {displayVal || <span className="text-muted-foreground/30">Phone</span>}
       </div>
     </div>
   );
