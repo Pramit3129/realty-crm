@@ -166,22 +166,46 @@ const DEFAULT_STATUS_STYLE = {
 };
 
 const COUNTRY_CODES = [
-  { code: "+1", label: "US/CA" },
-  { code: "+44", label: "UK" },
-  { code: "+91", label: "IN" },
-  { code: "+61", label: "AU" },
-  { code: "+49", label: "DE" },
-  { code: "+33", label: "FR" },
-  { code: "+81", label: "JP" },
-  { code: "+86", label: "CN" },
-  { code: "+971", label: "AE" },
-  { code: "+65", label: "SG" },
-  { code: "+55", label: "BR" },
-  { code: "+52", label: "MX" },
-  { code: "+27", label: "ZA" },
-  { code: "+82", label: "KR" },
-  { code: "+39", label: "IT" },
+  { code: "+1",   label: "US",  id: "US" },
+  { code: "+1",   label: "CA",  id: "CA" },
+  { code: "+44",  label: "UK",  id: "UK" },
+  { code: "+91",  label: "IN",  id: "IN" },
+  { code: "+61",  label: "AU",  id: "AU" },
+  { code: "+49",  label: "DE",  id: "DE" },
+  { code: "+33",  label: "FR",  id: "FR" },
+  { code: "+81",  label: "JP",  id: "JP" },
+  { code: "+86",  label: "CN",  id: "CN" },
+  { code: "+971", label: "AE",  id: "AE" },
+  { code: "+65",  label: "SG",  id: "SG" },
+  { code: "+55",  label: "BR",  id: "BR" },
+  { code: "+52",  label: "MX",  id: "MX" },
+  { code: "+27",  label: "ZA",  id: "ZA" },
+  { code: "+82",  label: "KR",  id: "KR" },
+  { code: "+39",  label: "IT",  id: "IT" },
 ];
+
+const COMMON_TITLES = ["Mr.", "Mrs.", "Ms.", "Miss", "Mx.", "Dr.", "Prof.", "Rev.", "Capt.", "Sir", "Lady", "Hon."];
+
+const SOURCE_MAX_LEN = 50;
+
+const CITIES_BY_COUNTRY: Record<string, string[]> = {
+  "US":  ["New York","Los Angeles","Chicago","Houston","Phoenix","Philadelphia","San Antonio","San Diego","Dallas","San Jose","Austin","San Francisco","Seattle","Denver","Nashville","Miami","Atlanta","Minneapolis","Portland","Las Vegas"],
+  "CA":  ["Toronto","Vancouver","Montreal","Calgary","Ottawa","Edmonton","Winnipeg","Quebec City","Hamilton","Kitchener","London","Halifax","Saskatoon","Regina","Victoria"],
+  "UK":  ["London","Birmingham","Manchester","Leeds","Glasgow","Liverpool","Sheffield","Bristol","Edinburgh","Cardiff","Newcastle","Leicester","Nottingham","Southampton","Belfast"],
+  "IN":  ["Mumbai","Delhi","Bangalore","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Jaipur","Surat","Lucknow","Kanpur","Nagpur","Indore","Bhopal","Visakhapatnam","Patna","Vadodara","Gurgaon","Noida"],
+  "AU":  ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Canberra","Gold Coast","Newcastle","Wollongong","Hobart","Geelong","Townsville","Cairns","Darwin"],
+  "DE":  ["Berlin","Hamburg","Munich","Cologne","Frankfurt","Stuttgart","Düsseldorf","Leipzig","Dortmund","Essen","Bremen","Dresden","Hanover","Nuremberg"],
+  "FR":  ["Paris","Lyon","Marseille","Toulouse","Nice","Nantes","Strasbourg","Montpellier","Bordeaux","Lille","Rennes","Reims","Le Havre","Saint-Étienne"],
+  "JP":  ["Tokyo","Yokohama","Osaka","Nagoya","Sapporo","Fukuoka","Kobe","Kyoto","Kawasaki","Saitama","Hiroshima","Sendai","Chiba"],
+  "CN":  ["Shanghai","Beijing","Shenzhen","Guangzhou","Chengdu","Tianjin","Chongqing","Wuhan","Xi'an","Hangzhou","Nanjing","Dongguan","Foshan"],
+  "AE":  ["Dubai","Abu Dhabi","Sharjah","Ajman","Ras Al Khaimah","Fujairah","Umm Al Quwain"],
+  "SG":  ["Singapore"],
+  "BR":  ["São Paulo","Rio de Janeiro","Brasília","Salvador","Fortaleza","Belo Horizonte","Manaus","Curitiba","Recife","Porto Alegre","Belém","Goiânia"],
+  "MX":  ["Mexico City","Guadalajara","Monterrey","Puebla","Tijuana","Cancún","Mérida","León","Querétaro","San Luis Potosí"],
+  "ZA":  ["Johannesburg","Cape Town","Durban","Pretoria","Port Elizabeth","Bloemfontein","East London","Nelspruit","Polokwane"],
+  "KR":  ["Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Ulsan","Changwon","Goyang"],
+  "IT":  ["Rome","Milan","Naples","Turin","Palermo","Genoa","Bologna","Florence","Bari","Catania","Venice","Verona"],
+};
 
 // ── Phone formatting ──────────────────────────────────────────────────
 const PHONE_FORMATS: Record<string, { maxDigits: number; mask: (d: string) => string }> = {
@@ -348,10 +372,12 @@ export default function LeadsView({
   const [newLastName, setNewLastName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newCountryCode, setNewCountryCode] = useState("+1");
+  const [newCountryId, setNewCountryId] = useState("US");
   const [newPhone, setNewPhone] = useState("");
   const [newCity, setNewCity] = useState("");
   const [newSource, setNewSource] = useState("");
   const [formError, setFormError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [members, setMembers] = useState<
@@ -546,6 +572,11 @@ export default function LeadsView({
   };
 
   // ── Create lead ───────────────────────────────────────────────────
+  function isValidEmail(email: string) {
+    if (!email) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
   async function handleCreate() {
     if (!newFirstName.trim()) {
       setFormError("First name is required");
@@ -555,6 +586,11 @@ export default function LeadsView({
       const match = input.match(/<(.+)>$/);
       return match ? match[1] : input.trim();
     };
+    const cleanEmail = extractEmail(newEmail);
+    if (cleanEmail && !isValidEmail(cleanEmail)) {
+      setEmailError("Invalid email address");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -585,6 +621,9 @@ export default function LeadsView({
       setNewFirstName("");
       setNewLastName("");
       setNewEmail("");
+      setEmailError("");
+      setNewCountryCode("+1");
+      setNewCountryId("US");
       setNewPhone("");
       setNewCity("");
       setNewSource("");
@@ -1025,7 +1064,11 @@ export default function LeadsView({
                     {/* Phone */}
                     <td className="px-4 py-2.5">
                       <EditableChipCell
-                        value={lead.phone}
+                        value={(() => {
+                          if (!lead.phone) return "";
+                          const { code, digits } = parseStoredPhone(lead.phone);
+                          return digits ? `${code} ${formatPhoneDigits(digits, code)}` : lead.phone;
+                        })()}
                         editing={
                           canEdit &&
                           editingCell?.leadId === lead._id &&
@@ -1046,6 +1089,7 @@ export default function LeadsView({
                     <td className="px-4 py-2.5">
                       <EditableTextCell
                         value={lead.source}
+                        displayValue={lead.source?.length > 28 ? lead.source.slice(0, 28) + "…" : lead.source}
                         editing={
                           canEdit &&
                           editingCell?.leadId === lead._id &&
@@ -1243,13 +1287,7 @@ export default function LeadsView({
             <div className="grid grid-cols-[90px_1fr_1fr] gap-2">
               <div className="grid gap-2">
                 <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  placeholder="Mr."
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="bg-white/[0.04]"
-                />
+                <TitleSelect value={newTitle} onChange={setNewTitle} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="firstName">First Name</Label>
@@ -1278,17 +1316,23 @@ export default function LeadsView({
                 id="email"
                 placeholder="email@example.com"
                 value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="bg-white/[0.04]"
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  const clean = e.target.value.match(/<(.+)>$/)?.[1] ?? e.target.value.trim();
+                  setEmailError(clean && !isValidEmail(clean) ? "Invalid email address" : "");
+                }}
+                className={`bg-white/[0.04] ${emailError ? "border-red-500/60" : ""}`}
               />
+              {emailError && <p className="text-[11px] text-red-400">{emailError}</p>}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="phone">Phone</Label>
               <div className="flex gap-2">
                 <CountryCodeSelect
                   value={newCountryCode}
-                  onChange={(code) => {
+                  onChange={(code, id) => {
                     setNewCountryCode(code);
+                    if (id) setNewCountryId(id);
                     const digits = stripPhoneFormatting(newPhone).slice(0, getMaxPhoneDigits(code));
                     setNewPhone(formatPhoneDigits(digits, code));
                   }}
@@ -1307,20 +1351,24 @@ export default function LeadsView({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                placeholder="City"
+              <CityCombobox
                 value={newCity}
-                onChange={(e) => setNewCity(e.target.value)}
-                className="bg-white/[0.04]"
+                onChange={setNewCity}
+                countryId={newCountryId}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="source">Source</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="source">Source <span className="text-muted-foreground/50 font-normal">(optional)</span></Label>
+                <span className={`text-[10px] ${newSource.length > SOURCE_MAX_LEN * 0.8 ? "text-amber-400" : "text-muted-foreground/40"}`}>
+                  {newSource.length}/{SOURCE_MAX_LEN}
+                </span>
+              </div>
               <Input
                 id="source"
-                placeholder="Source"
+                placeholder="e.g. Referral, Website, Cold Call"
                 value={newSource}
+                maxLength={SOURCE_MAX_LEN}
                 onChange={(e) => setNewSource(e.target.value)}
                 className="bg-white/[0.04]"
               />
@@ -1521,6 +1569,7 @@ function EditableChipCell({
 // ── Editable plain text cell (source) ─────────────────────────────────
 function EditableTextCell({
   value,
+  displayValue,
   editing,
   editValue,
   onStart,
@@ -1530,6 +1579,7 @@ function EditableTextCell({
   canEdit,
 }: {
   value: string;
+  displayValue?: string;
   editing: boolean;
   editValue: string;
   onStart: () => void;
@@ -1554,16 +1604,18 @@ function EditableTextCell({
       />
     );
   }
+  const shown = displayValue ?? value;
   return (
     <span
       className={`text-[12px] text-muted-foreground ${canEdit === false ? "" : "cursor-text"}`}
+      title={displayValue && value !== displayValue ? value : undefined}
       onDoubleClick={(e) => {
         if (canEdit === false) return;
         e.stopPropagation();
         onStart();
       }}
     >
-      {value || <span className="text-muted-foreground/30">—</span>}
+      {shown || <span className="text-muted-foreground/30">—</span>}
     </span>
   );
 }
@@ -1685,6 +1737,105 @@ function FilterSelect({
   );
 }
 
+// ── Title select ──────────────────────────────────────────────────────
+function TitleSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white/[0.04] px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      >
+        <span className={value ? "text-foreground" : "text-muted-foreground/60 text-sm"}>
+          {value || "Select"}
+        </span>
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
+          <button
+            type="button"
+            onClick={() => { onChange(""); setOpen(false); }}
+            className="flex w-full px-3 py-1.5 text-[12px] text-muted-foreground/50 hover:bg-white/[0.06] hover:text-foreground text-left"
+          >
+            — None —
+          </button>
+          {COMMON_TITLES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { onChange(t); setOpen(false); }}
+              className={`flex w-full items-center justify-between px-3 py-1.5 text-[12px] transition-colors hover:bg-white/[0.06] ${value === t ? "text-foreground" : "text-muted-foreground"}`}
+            >
+              {t}
+              {value === t && <Check className="h-3 w-3" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── City combobox ─────────────────────────────────────────────────────
+function CityCombobox({ value, onChange, countryId }: { value: string; onChange: (v: string) => void; countryId: string }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(value);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const cities = CITIES_BY_COUNTRY[countryId] || [];
+  const filtered = search
+    ? cities.filter((c) => c.toLowerCase().includes(search.toLowerCase()))
+    : cities;
+
+  useEffect(() => { setSearch(value); }, [value]);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <Input
+        placeholder="City"
+        value={search}
+        onChange={(e) => { setSearch(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => cities.length > 0 && setOpen(true)}
+        className="bg-white/[0.04]"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
+          {filtered.slice(0, 20).map((city) => (
+            <button
+              key={city}
+              type="button"
+              onClick={() => { onChange(city); setSearch(city); setOpen(false); }}
+              className="flex w-full px-3 py-1.5 text-left text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            >
+              {city}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Country code select ───────────────────────────────────────────────
 function CountryCodeSelect({
   value,
@@ -1692,7 +1843,7 @@ function CountryCodeSelect({
   disabled = false,
 }: {
   value: string;
-  onChange?: (v: string) => void;
+  onChange?: (code: string, id?: string) => void;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -1721,9 +1872,9 @@ function CountryCodeSelect({
         <div className="absolute left-0 top-full z-50 mt-1 max-h-48 w-28 overflow-auto rounded-lg border border-white/[0.08] bg-[#1a1a1a] py-1 shadow-xl">
           {COUNTRY_CODES.map((cc) => (
             <button
-              key={cc.code}
+              key={cc.id}
               onClick={() => {
-                onChange?.(cc.code);
+                onChange?.(cc.code, cc.id);
                 setOpen(false);
               }}
               className="flex w-full items-center justify-between px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
@@ -1992,6 +2143,32 @@ function HomeTab({
           label="Created"
           value={timeAgo(lead.createdAt)}
         />
+        {lead.tags && lead.tags.length > 0 && (
+          <div className="flex items-start gap-3">
+            <div className="flex w-24 shrink-0 items-center gap-1.5 pt-0.5">
+              <TagsIcon className="h-3 w-3 text-muted-foreground/60" />
+              <span className="text-[12px] text-muted-foreground">Tags</span>
+            </div>
+            <div className="flex flex-1 flex-wrap gap-1.5">
+              {lead.tags.map((tag) => (
+                <span
+                  key={tag._id}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  style={{
+                    backgroundColor: hexToRgba(tag.color, 0.18),
+                    color: tag.color,
+                  }}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {!(userRole === "OWNER" && getRealtorId(lead) !== currentUserId) && (
@@ -2154,7 +2331,7 @@ function PhoneDetailRow({
           <span className="text-[12px] text-muted-foreground">Phone</span>
         </div>
         <div className="flex flex-1 gap-1">
-          <CountryCodeSelect value={code} onChange={handleCodeChange} />
+          <CountryCodeSelect value={code} onChange={(c) => handleCodeChange(c)} />
           <Input
             value={phoneInput}
             onChange={(e) => handlePhoneInput(e.target.value)}

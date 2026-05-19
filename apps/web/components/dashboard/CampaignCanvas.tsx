@@ -15,7 +15,7 @@ import {
   Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone } from "lucide-react";
+import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
@@ -588,6 +588,8 @@ function StepEditorModal({
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState("");
 
   const isEditing = !!step;
 
@@ -824,6 +826,22 @@ function StepEditorModal({
         </div>
         
         <div className="flex-1 border border-border rounded-md overflow-hidden relative min-h-0 bg-white flex flex-col">
+          {/* Preview button — always visible regardless of iframe scroll */}
+          <div className="absolute top-2 right-2 z-10">
+            <button
+              type="button"
+              onClick={() => {
+                emailEditorRef.current?.editor.exportHtml((data: any) => {
+                  setPreviewHtml(data.html || "");
+                  setShowPreview(true);
+                });
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-md bg-white/90 shadow-sm border border-gray-200 text-gray-600 hover:bg-white hover:text-gray-900 transition-colors"
+              title="Preview template"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+          </div>
            <EmailEditor
               ref={emailEditorRef}
               onLoad={onLoad}
@@ -831,11 +849,34 @@ function StepEditorModal({
               style={{ minHeight: '100%', height: '100%', flex: 1 }}
               options={{
                  appearance: {
-                    theme: 'dark' // Can adjust based on your UI theme, but 'dark' or 'light'
+                    theme: 'dark'
                  }
               }}
            />
         </div>
+
+        {/* Template preview modal */}
+        {showPreview && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="relative w-full max-w-3xl h-[90vh] rounded-xl border border-border bg-white shadow-2xl flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-50 shrink-0">
+                <span className="text-sm font-medium text-gray-700">Template Preview</span>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <iframe
+                srcDoc={previewHtml}
+                className="flex-1 w-full border-0"
+                title="Email Preview"
+                sandbox="allow-same-origin"
+              />
+            </div>
+          </div>
+        )}
 
         {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
 
