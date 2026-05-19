@@ -118,15 +118,25 @@ function filtersToRows(filters: Record<string, any> = {}): FilterRow[] {
   for (const [key, raw] of Object.entries(filters || {})) {
     const id = `${i++}-${key}`;
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-      if ("$gt" in raw) rows.push({ id, key, op: "gt", value: String(raw.$gt) });
-      else if ("$gte" in raw) rows.push({ id, key, op: "gte", value: String(raw.$gte) });
-      else if ("$lt" in raw) rows.push({ id, key, op: "lt", value: String(raw.$lt) });
-      else if ("$lte" in raw) rows.push({ id, key, op: "lte", value: String(raw.$lte) });
-      else if ("$ne" in raw) rows.push({ id, key, op: "ne", value: String(raw.$ne) });
+      if ("$gt" in raw)
+        rows.push({ id, key, op: "gt", value: String(raw.$gt) });
+      else if ("$gte" in raw)
+        rows.push({ id, key, op: "gte", value: String(raw.$gte) });
+      else if ("$lt" in raw)
+        rows.push({ id, key, op: "lt", value: String(raw.$lt) });
+      else if ("$lte" in raw)
+        rows.push({ id, key, op: "lte", value: String(raw.$lte) });
+      else if ("$ne" in raw)
+        rows.push({ id, key, op: "ne", value: String(raw.$ne) });
       else if ("$in" in raw && Array.isArray(raw.$in))
         rows.push({ id, key, op: "in", value: raw.$in.join(",") });
       else if ("$exists" in raw)
-        rows.push({ id, key, op: "exists", value: raw.$exists ? "true" : "false" });
+        rows.push({
+          id,
+          key,
+          op: "exists",
+          value: raw.$exists ? "true" : "false",
+        });
       else if ("$regex" in raw)
         rows.push({ id, key, op: "contains", value: String(raw.$regex) });
       else rows.push({ id, key, op: "eq", value: JSON.stringify(raw) });
@@ -205,7 +215,10 @@ export default function TagsManager({
   onChanged,
 }: TagsManagerProps) {
   const [tags, setTags] = useState<TagDef[]>([]);
-  const [schema, setSchema] = useState<FilterSchema>({ standard: [], custom: [] });
+  const [schema, setSchema] = useState<FilterSchema>({
+    standard: [],
+    custom: [],
+  });
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<TagDef | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -216,7 +229,9 @@ export default function TagsManager({
     try {
       const [tagsRes, schemaRes] = await Promise.all([
         api("/tag/list", { headers: { "x-workspace-id": workspaceId } }),
-        api("/tag/filter-schema", { headers: { "x-workspace-id": workspaceId } }),
+        api("/tag/filter-schema", {
+          headers: { "x-workspace-id": workspaceId },
+        }),
       ]);
       if (tagsRes.ok) setTags(await tagsRes.json());
       if (schemaRes.ok) setSchema(await schemaRes.json());
@@ -270,7 +285,7 @@ export default function TagsManager({
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <TagIcon className="h-4 w-4 text-muted-foreground" />
-            <DialogTitle className="text-sm font-semibold">Tags & Smart Views</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">Tags</DialogTitle>
           </div>
           <p className="text-[11px] text-muted-foreground/70 pt-1">
             Manual labels you assign · Dynamic views matched in real-time
@@ -293,7 +308,9 @@ export default function TagsManager({
           <div className="flex flex-col max-h-[60vh]">
             <div className="flex items-center justify-between px-5 py-2.5 border-b border-white/[0.04]">
               <span className="text-[11px] text-muted-foreground">
-                {loading ? "Loading…" : `${tags.length} tag${tags.length === 1 ? "" : "s"}`}
+                {loading
+                  ? "Loading…"
+                  : `${tags.length} tag${tags.length === 1 ? "" : "s"}`}
               </span>
               <Button
                 size="sm"
@@ -309,7 +326,9 @@ export default function TagsManager({
               {!loading && tags.length === 0 && (
                 <div className="px-5 py-12 text-center">
                   <TagIcon className="mx-auto h-8 w-8 text-muted-foreground/30" />
-                  <p className="mt-3 text-sm text-muted-foreground">No tags yet</p>
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    No tags yet
+                  </p>
                   <p className="mt-1 text-[11px] text-muted-foreground/60">
                     Create a manual label or a dynamic Smart View.
                   </p>
@@ -390,7 +409,9 @@ function TagForm({
 }) {
   const [name, setName] = useState(existing?.name || "");
   const [color, setColor] = useState(existing?.color || TAG_COLOR_PALETTE[0]);
-  const [type, setType] = useState<"MANUAL" | "DYNAMIC">(existing?.type || "MANUAL");
+  const [type, setType] = useState<"MANUAL" | "DYNAMIC">(
+    existing?.type || "MANUAL",
+  );
   const [rows, setRows] = useState<FilterRow[]>(
     existing?.filters ? filtersToRows(existing.filters) : [],
   );
@@ -411,7 +432,9 @@ function TagForm({
   }
 
   function updateRow(id: string, patch: Partial<FilterRow>) {
-    setRows((r) => r.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+    setRows((r) =>
+      r.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+    );
   }
 
   function removeRow(id: string) {
@@ -454,7 +477,9 @@ function TagForm({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error?.message || data.error || data.message || "Failed to save");
+        setError(
+          data.error?.message || data.error || data.message || "Failed to save",
+        );
         return;
       }
       onSaved();
@@ -484,21 +509,24 @@ function TagForm({
             active={type === "MANUAL"}
             onClick={() => setType("MANUAL")}
             icon={<TagIcon className="h-3.5 w-3.5" />}
-            label="Manual"
+            label="Manual Tags"
             desc="Static label you assign"
           />
           <TypeCard
             active={type === "DYNAMIC"}
             onClick={() => setType("DYNAMIC")}
             icon={<Sparkles className="h-3.5 w-3.5" />}
-            label="Smart View"
+            label="Dynamic Tags"
             desc="Auto-matched by rules"
           />
         </div>
 
         {/* Name */}
         <div className="grid gap-1.5">
-          <Label htmlFor="tag-name" className="text-[11px] text-muted-foreground">
+          <Label
+            htmlFor="tag-name"
+            className="text-[11px] text-muted-foreground"
+          >
             Name
           </Label>
           <Input
@@ -519,7 +547,9 @@ function TagForm({
                 key={c}
                 onClick={() => setColor(c)}
                 className={`h-7 w-7 rounded-full border-2 transition-all ${
-                  color === c ? "border-white scale-110" : "border-transparent hover:scale-105"
+                  color === c
+                    ? "border-white scale-110"
+                    : "border-transparent hover:scale-105"
                 }`}
                 style={{ backgroundColor: c }}
                 title={c}
@@ -742,7 +772,8 @@ function OptionPicker({
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -784,11 +815,15 @@ function OptionPicker({
                 setQuery("");
               }}
               className={`flex w-full items-center justify-between px-3 py-1.5 text-[12px] transition-colors hover:bg-white/[0.06] ${
-                value === opt.value ? "text-foreground" : "text-muted-foreground"
+                value === opt.value
+                  ? "text-foreground"
+                  : "text-muted-foreground"
               }`}
             >
               <span className="truncate text-left">{opt.label}</span>
-              {value === opt.value && <Check className="h-3 w-3 shrink-0 ml-2" />}
+              {value === opt.value && (
+                <Check className="h-3 w-3 shrink-0 ml-2" />
+              )}
             </button>
           ))}
         </div>
@@ -814,14 +849,18 @@ function OptionMultiPicker({
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
   const selectedValues = value
-    ? value.split(",").map((s) => s.trim()).filter(Boolean)
+    ? value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
     : [];
   const selectedLabels = selectedValues.map(
     (v) => options.find((o) => o.value === v)?.label || v,
@@ -901,7 +940,8 @@ function NativeSelect({
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -928,11 +968,15 @@ function NativeSelect({
                 setOpen(false);
               }}
               className={`flex w-full items-center justify-between px-3 py-1.5 text-[12px] transition-colors hover:bg-white/[0.06] ${
-                value === opt.value ? "text-foreground" : "text-muted-foreground"
+                value === opt.value
+                  ? "text-foreground"
+                  : "text-muted-foreground"
               }`}
             >
               <span className="truncate text-left">{opt.label}</span>
-              {value === opt.value && <Check className="h-3 w-3 shrink-0 ml-2" />}
+              {value === opt.value && (
+                <Check className="h-3 w-3 shrink-0 ml-2" />
+              )}
             </button>
           ))}
         </div>
