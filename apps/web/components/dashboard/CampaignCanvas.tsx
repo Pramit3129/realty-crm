@@ -15,7 +15,7 @@ import {
   Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone, Eye } from "lucide-react";
+import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
@@ -328,7 +328,7 @@ export default function CampaignCanvas({
 
       if (startRes.ok) {
         alert("Campaign started successfully!");
-        fetchCampaignInfo();
+        await fetchCampaignInfo();
       } else {
         const errData = await startRes.json();
         alert(errData.message || "Failed to start campaign");
@@ -496,7 +496,11 @@ export default function CampaignCanvas({
               disabled={starting}
               className="h-8 gap-1.5 rounded-md px-4 text-xs bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-md transition-colors"
             >
-              <Play className="h-3.5 w-3.5 fill-current" />
+              {starting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5 fill-current" />
+              )}
               {starting ? "Starting..." : campaignStatus === "paused" ? "Resume Campaign" : "Start Campaign"}
             </Button>
           )}
@@ -616,7 +620,26 @@ function StepEditorModal({
   };
 
   const onReady = () => {
-    // Editor is ready
+    emailEditorRef.current?.editor.registerCallback(
+      "image",
+      async (file: { accepted: File[]; attachments: File[] }, done: (data: { progress: number; url?: string }) => void) => {
+        const uploadFile = file.accepted?.[0] ?? file.attachments?.[0];
+        if (!uploadFile) return done({ progress: 0 });
+
+        done({ progress: 33 });
+        try {
+          const formData = new FormData();
+          formData.append("file", uploadFile);
+          const res = await fetch("/api/upload-image", { method: "POST", body: formData });
+          const data = await res.json();
+          if (!res.ok || !data.url) throw new Error(data.error || "Upload failed");
+          done({ progress: 100, url: data.url });
+        } catch (err) {
+          console.error("Image upload failed:", err);
+          done({ progress: 0 });
+        }
+      },
+    );
   };
 
   const handleSubmit = async () => {
