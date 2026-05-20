@@ -452,23 +452,29 @@ export default function CampaignCanvas({
               {campaignName}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${campaignStatus === 'running' ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                {campaignStatus}
-              </p>
+              {loading ? (
+                <div className="h-3 w-16 animate-pulse rounded bg-muted/60" />
+              ) : (
+                <>
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${campaignStatus === 'running' ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                    {campaignStatus}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {campaignStatus === 'running' && (
+        {!loading && campaignStatus === 'running' && (
           <div className="flex-1 max-w-[300px] mx-8">
              <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] text-muted-foreground font-medium uppercase">Sending Emails</span>
                 <span className="text-[10px] font-bold text-blue-500">{progress.percentage}%</span>
              </div>
              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-500" 
+                <div
+                  className="h-full bg-blue-500 transition-all duration-500"
                   style={{ width: `${progress.percentage}%` }}
                 ></div>
              </div>
@@ -479,7 +485,13 @@ export default function CampaignCanvas({
         )}
 
         <div className="flex items-center gap-3">
-          {campaignStatus === "running" ? (
+          {loading ? (
+            <>
+              <div className="h-8 w-32 animate-pulse rounded-md bg-muted/60" />
+              <div className="h-4 w-px bg-border mx-1" />
+              <div className="h-8 w-24 animate-pulse rounded-md bg-muted/60" />
+            </>
+          ) : campaignStatus === "running" ? (
             <Button
               size="sm"
               onClick={handleStopCampaign}
@@ -505,17 +517,21 @@ export default function CampaignCanvas({
             </Button>
           )}
 
-          <div className="h-4 w-px bg-border mx-1"></div>
-          {campaignStatus !== "running" && (
-            <Button
-              size="sm"
-              onClick={handleAddStepClick}
-              className="h-8 gap-1.5 rounded-md px-3 text-xs bg-muted hover:bg-muted-foreground/20 text-foreground border-0"
-              variant="outline"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Step
-            </Button>
+          {!loading && (
+            <>
+              <div className="h-4 w-px bg-border mx-1"></div>
+              {campaignStatus !== "running" && (
+                <Button
+                  size="sm"
+                  onClick={handleAddStepClick}
+                  className="h-8 gap-1.5 rounded-md px-3 text-xs bg-muted hover:bg-muted-foreground/20 text-foreground border-0"
+                  variant="outline"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Step
+                </Button>
+              )}
+            </>
           )}
           <button
             onClick={onClose}
