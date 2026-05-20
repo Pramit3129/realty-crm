@@ -190,7 +190,34 @@ const SOURCE_MAX_LEN = 50;
 
 const CITIES_BY_COUNTRY: Record<string, string[]> = {
   "US":  ["New York","Los Angeles","Chicago","Houston","Phoenix","Philadelphia","San Antonio","San Diego","Dallas","San Jose","Austin","San Francisco","Seattle","Denver","Nashville","Miami","Atlanta","Minneapolis","Portland","Las Vegas"],
-  "CA":  ["Toronto","Vancouver","Montreal","Calgary","Ottawa","Edmonton","Winnipeg","Quebec City","Hamilton","Kitchener","London","Halifax","Saskatoon","Regina","Victoria"],
+  "CA":  [
+    // Ontario
+    "Toronto","Ottawa","Mississauga","Brampton","Hamilton","London","Markham","Vaughan","Kitchener","Windsor","Richmond Hill","Oakville","Burlington","Oshawa","Barrie","Guelph","Kingston","Thunder Bay","Sudbury","St. Catharines",
+    // British Columbia
+    "Vancouver","Surrey","Burnaby","Richmond","Kelowna","Abbotsford","Coquitlam","Langley","Victoria","Nanaimo","Kamloops","Prince George","Chilliwack","Delta",
+    // Quebec
+    "Montreal","Quebec City","Laval","Longueuil","Sherbrooke","Saguenay","Lévis","Gatineau","Trois-Rivières","Terrebonne",
+    // Alberta
+    "Calgary","Edmonton","Red Deer","Lethbridge","Airdrie","Medicine Hat","Grande Prairie","Spruce Grove","Fort McMurray","Beaumont",
+    // Manitoba
+    "Winnipeg","Brandon","Steinbach","Winkler","Portage la Prairie","Thompson",
+    // Saskatchewan
+    "Saskatoon","Regina","Prince Albert","Moose Jaw","Swift Current","Yorkton",
+    // Nova Scotia
+    "Halifax","Dartmouth","Sydney","Truro","New Glasgow",
+    // New Brunswick
+    "Moncton","Saint John","Fredericton","Miramichi","Bathurst",
+    // Newfoundland & Labrador
+    "St. John's","Corner Brook","Gander","Grand Falls-Windsor",
+    // Prince Edward Island
+    "Charlottetown","Summerside",
+    // Northwest Territories
+    "Yellowknife","Hay River",
+    // Yukon
+    "Whitehorse","Dawson City",
+    // Nunavut
+    "Iqaluit","Rankin Inlet"
+  ],
   "UK":  ["London","Birmingham","Manchester","Leeds","Glasgow","Liverpool","Sheffield","Bristol","Edinburgh","Cardiff","Newcastle","Leicester","Nottingham","Southampton","Belfast"],
   "IN":  ["Mumbai","Delhi","Bangalore","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Jaipur","Surat","Lucknow","Kanpur","Nagpur","Indore","Bhopal","Visakhapatnam","Patna","Vadodara","Gurgaon","Noida"],
   "AU":  ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Canberra","Gold Coast","Newcastle","Wollongong","Hobart","Geelong","Townsville","Cairns","Darwin"],
@@ -372,7 +399,7 @@ export default function LeadsView({
   const [newLastName, setNewLastName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newCountryCode, setNewCountryCode] = useState("+1");
-  const [newCountryId, setNewCountryId] = useState("US");
+  const [newCountryId, setNewCountryId] = useState("CA");
   const [newPhone, setNewPhone] = useState("");
   const [newCity, setNewCity] = useState("");
   const [newSource, setNewSource] = useState("");
@@ -623,7 +650,7 @@ export default function LeadsView({
       setNewEmail("");
       setEmailError("");
       setNewCountryCode("+1");
-      setNewCountryId("US");
+      setNewCountryId("CA");
       setNewPhone("");
       setNewCity("");
       setNewSource("");
@@ -1330,6 +1357,7 @@ export default function LeadsView({
               <div className="flex gap-2">
                 <CountryCodeSelect
                   value={newCountryCode}
+                  selectedId={newCountryId}
                   onChange={(code, id) => {
                     setNewCountryCode(code);
                     if (id) setNewCountryId(id);
@@ -1839,15 +1867,20 @@ function CityCombobox({ value, onChange, countryId }: { value: string; onChange:
 // ── Country code select ───────────────────────────────────────────────
 function CountryCodeSelect({
   value,
+  selectedId,
   onChange,
   disabled = false,
 }: {
   value: string;
+  selectedId?: string;
   onChange?: (code: string, id?: string) => void;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const label = selectedId
+    ? COUNTRY_CODES.find((cc) => cc.id === selectedId)?.label
+    : COUNTRY_CODES.find((cc) => cc.code === value)?.label;
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -1862,10 +1895,11 @@ function CountryCodeSelect({
     <div ref={ref} className="relative">
       <button
         onClick={() => !disabled && setOpen(!open)}
-        className={`flex h-8 items-center gap-0.5 rounded-md bg-white/[0.04] px-2 text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.08] ${disabled ? "cursor-not-allowed opacity-70" : ""}`}
+        className={`flex h-8 items-center gap-1 rounded-md bg-white/[0.04] px-2 text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.08] ${disabled ? "cursor-not-allowed opacity-70" : ""}`}
         disabled={disabled}
       >
         {value}
+        {label && <span className="text-muted-foreground/50">{label}</span>}
         <ChevronDown className="h-2.5 w-2.5 opacity-60" />
       </button>
       {open && (
