@@ -15,7 +15,7 @@ import {
   Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone, Eye } from "lucide-react";
+import { X, Play, Clock, Plus, PenSquare, Trash2, Megaphone, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
@@ -328,7 +328,7 @@ export default function CampaignCanvas({
 
       if (startRes.ok) {
         alert("Campaign started successfully!");
-        fetchCampaignInfo();
+        await fetchCampaignInfo();
       } else {
         const errData = await startRes.json();
         alert(errData.message || "Failed to start campaign");
@@ -452,23 +452,29 @@ export default function CampaignCanvas({
               {campaignName}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`inline-block w-1.5 h-1.5 rounded-full ${campaignStatus === 'running' ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                {campaignStatus}
-              </p>
+              {loading ? (
+                <div className="h-3 w-16 animate-pulse rounded bg-muted/60" />
+              ) : (
+                <>
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${campaignStatus === 'running' ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                    {campaignStatus}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {campaignStatus === 'running' && (
+        {!loading && campaignStatus === 'running' && (
           <div className="flex-1 max-w-[300px] mx-8">
              <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] text-muted-foreground font-medium uppercase">Sending Emails</span>
                 <span className="text-[10px] font-bold text-blue-500">{progress.percentage}%</span>
              </div>
              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-500" 
+                <div
+                  className="h-full bg-blue-500 transition-all duration-500"
                   style={{ width: `${progress.percentage}%` }}
                 ></div>
              </div>
@@ -479,7 +485,13 @@ export default function CampaignCanvas({
         )}
 
         <div className="flex items-center gap-3">
-          {campaignStatus === "running" ? (
+          {loading ? (
+            <>
+              <div className="h-8 w-32 animate-pulse rounded-md bg-muted/60" />
+              <div className="h-4 w-px bg-border mx-1" />
+              <div className="h-8 w-24 animate-pulse rounded-md bg-muted/60" />
+            </>
+          ) : campaignStatus === "running" ? (
             <Button
               size="sm"
               onClick={handleStopCampaign}
@@ -496,22 +508,30 @@ export default function CampaignCanvas({
               disabled={starting}
               className="h-8 gap-1.5 rounded-md px-4 text-xs bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-md transition-colors"
             >
-              <Play className="h-3.5 w-3.5 fill-current" />
+              {starting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5 fill-current" />
+              )}
               {starting ? "Starting..." : campaignStatus === "paused" ? "Resume Campaign" : "Start Campaign"}
             </Button>
           )}
 
-          <div className="h-4 w-px bg-border mx-1"></div>
-          {campaignStatus !== "running" && (
-            <Button
-              size="sm"
-              onClick={handleAddStepClick}
-              className="h-8 gap-1.5 rounded-md px-3 text-xs bg-muted hover:bg-muted-foreground/20 text-foreground border-0"
-              variant="outline"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Step
-            </Button>
+          {!loading && (
+            <>
+              <div className="h-4 w-px bg-border mx-1"></div>
+              {campaignStatus !== "running" && (
+                <Button
+                  size="sm"
+                  onClick={handleAddStepClick}
+                  className="h-8 gap-1.5 rounded-md px-3 text-xs bg-muted hover:bg-muted-foreground/20 text-foreground border-0"
+                  variant="outline"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Step
+                </Button>
+              )}
+            </>
           )}
           <button
             onClick={onClose}
@@ -616,7 +636,26 @@ function StepEditorModal({
   };
 
   const onReady = () => {
-    // Editor is ready
+    emailEditorRef.current?.editor.registerCallback(
+      "image",
+      async (file: { accepted: File[]; attachments: File[] }, done: (data: { progress: number; url?: string }) => void) => {
+        const uploadFile = file.accepted?.[0] ?? file.attachments?.[0];
+        if (!uploadFile) return done({ progress: 0 });
+
+        done({ progress: 33 });
+        try {
+          const formData = new FormData();
+          formData.append("file", uploadFile);
+          const res = await fetch("/api/upload-image", { method: "POST", body: formData });
+          const data = await res.json();
+          if (!res.ok || !data.url) throw new Error(data.error || "Upload failed");
+          done({ progress: 100, url: data.url });
+        } catch (err) {
+          console.error("Image upload failed:", err);
+          done({ progress: 0 });
+        }
+      },
+    );
   };
 
   const handleSubmit = async () => {
