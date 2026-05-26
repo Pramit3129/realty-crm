@@ -30,6 +30,20 @@ interface OnboardingFormProps {
   onComplete: () => void;
 }
 
+const COUNTRY_CODES = [
+  { dial: "+1",   flag: "🇨🇦", label: "CA"  },
+  { dial: "+1",   flag: "🇺🇸", label: "US"  },
+  { dial: "+44",  flag: "🇬🇧", label: "UK"  },
+  { dial: "+61",  flag: "🇦🇺", label: "AU"  },
+  { dial: "+64",  flag: "🇳🇿", label: "NZ"  },
+  { dial: "+91",  flag: "🇮🇳", label: "IN"  },
+  { dial: "+92",  flag: "🇵🇰", label: "PK"  },
+  { dial: "+27",  flag: "🇿🇦", label: "ZA"  },
+  { dial: "+971", flag: "🇦🇪", label: "UAE" },
+  { dial: "+49",  flag: "🇩🇪", label: "DE"  },
+  { dial: "+33",  flag: "🇫🇷", label: "FR"  },
+];
+
 
 export default function OnboardingForm({ onComplete }: OnboardingFormProps): React.JSX.Element {
   const [step, setStep] = useState(1);
@@ -38,6 +52,9 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string>("");
   const [marketSearchText, setMarketSearchText] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState("CA");
+  const [nationalPhone, setNationalPhone] = useState("");
+  const countryCode = COUNTRY_CODES.find(c => c.label === selectedCountry)?.dial ?? "+1";
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -60,24 +77,34 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUploadField, setCurrentUploadField] = useState<string | null>(null);
 
-  const formatPhoneNumber = (input: string): string => {
+  const formatNationalPhone = (input: string, dial: string): string => {
     const digits = input.replace(/\D/g, '');
     if (!digits) return '';
-    const hasCountryCode = digits.startsWith('1') && digits.length > 10;
-    const national = hasCountryCode ? digits.slice(1) : digits;
-    const prefix = hasCountryCode ? '+1 ' : '';
-    if (national.length <= 3) return prefix + national;
-    if (national.length <= 6) return `${prefix}(${national.slice(0, 3)}) ${national.slice(3)}`;
-    return `${prefix}(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6, 10)}`;
+    if (dial === '+1') {
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    }
+    return digits;
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setFormData(prev => ({ ...prev, phoneNumber: formatted }));
+    const formatted = formatNationalPhone(e.target.value, countryCode);
+    setNationalPhone(formatted);
+    setFormData(prev => ({ ...prev, phoneNumber: `${countryCode} ${formatted}` }));
     if (submitError) setSubmitError("");
     if (errors.phoneNumber) {
       setErrors(prev => { const n = { ...prev }; delete n.phoneNumber; return n; });
     }
+  };
+
+  const handleCountryCodeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const label = e.target.value;
+    setSelectedCountry(label);
+    const dial = COUNTRY_CODES.find(c => c.label === label)?.dial ?? "+1";
+    const reformatted = formatNationalPhone(nationalPhone, dial);
+    setNationalPhone(reformatted);
+    setFormData(prev => ({ ...prev, phoneNumber: `${dial} ${reformatted}` }));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,13 +114,15 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
     setFormData(prev => ({ ...prev, [name]: parsed }));
     if (submitError) setSubmitError("");
     if (name === "professionalEmail") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!value.trim()) {
         setErrors(prev => { const n = { ...prev }; delete n.professionalEmail; return n; });
-      } else if (!emailRegex.test(value)) {
-        setErrors(prev => ({ ...prev, professionalEmail: "Invalid email" }));
       } else {
-        setErrors(prev => { const n = { ...prev }; delete n.professionalEmail; return n; });
+        const emailError = getEmailError(value);
+        if (emailError) {
+          setErrors(prev => ({ ...prev, professionalEmail: emailError }));
+        } else {
+          setErrors(prev => { const n = { ...prev }; delete n.professionalEmail; return n; });
+        }
       }
     } else if (errors[name]) {
       setErrors(prev => {
@@ -102,6 +131,20 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         return newErrors;
       });
     }
+  };
+
+  const getEmailError = (value: string): string | null => {
+    if (value.includes(' ')) return "Email cannot contain spaces";
+    if (!value.includes('@')) return "Missing @ symbol";
+    const [local, ...rest] = value.split('@');
+    if (!local) return "Missing part before @";
+    if (rest.length > 1) return "Email can only have one @";
+    const domain = rest[0];
+    if (!domain) return "Missing domain after @";
+    if (!domain.includes('.')) return "Domain needs extension (e.g. .com)";
+    const tld = domain.split('.').pop();
+    if (!tld || tld.length < 2) return "Invalid domain extension";
+    return null;
   };
 
   const validateStep = (currentStep: number) => {
@@ -123,11 +166,11 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         newErrors.phoneNumber = "Invalid format";
       }
 
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!formData.professionalEmail.trim()) {
         newErrors.professionalEmail = "Required";
-      } else if (!emailRegex.test(formData.professionalEmail)) {
-        newErrors.professionalEmail = "Invalid email";
+      } else {
+        const emailErr = getEmailError(formData.professionalEmail);
+        if (emailErr) newErrors.professionalEmail = emailErr;
       }
     } else if (currentStep === 2) {
       if (formData.markets.length === 0) {
@@ -324,18 +367,34 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
       </div>
       <div className="space-y-1">
         <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Phone</label>
-        <div className="relative">
-          <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
-          <Input
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handlePhoneChange}
-            placeholder="(555) 555-0100"
+        <div className="flex gap-1.5">
+          <select
+            value={selectedCountry}
+            onChange={handleCountryCodeChange}
             className={cn(
-              "h-9 pl-8 bg-background/50 text-sm focus-visible:ring-1 transition-all",
-              errors.phoneNumber && "border-destructive focus-visible:ring-destructive"
-            )} 
-          />
+              "h-9 px-2 bg-background/50 text-sm border border-input rounded-md focus:outline-none focus:ring-1 focus:ring-ring transition-all shrink-0",
+              errors.phoneNumber && "border-destructive focus:ring-destructive"
+            )}
+          >
+            {COUNTRY_CODES.map(c => (
+              <option key={c.label} value={c.label}>
+                {c.flag} {c.dial}
+              </option>
+            ))}
+          </select>
+          <div className="relative flex-1">
+            <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
+            <Input
+              name="phoneNumber"
+              value={nationalPhone}
+              onChange={handlePhoneChange}
+              placeholder={countryCode === "+1" ? "(555) 555-0100" : "Phone number"}
+              className={cn(
+                "h-9 pl-8 bg-background/50 text-sm focus-visible:ring-1 transition-all",
+                errors.phoneNumber && "border-destructive focus-visible:ring-destructive"
+              )}
+            />
+          </div>
         </div>
         {errors.phoneNumber && <p className="text-[9px] text-destructive font-medium ml-1 animate-in fade-in slide-in-from-left-1">{errors.phoneNumber}</p>}
       </div>
