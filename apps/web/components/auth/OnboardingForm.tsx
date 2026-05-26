@@ -60,14 +60,42 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUploadField, setCurrentUploadField] = useState<string | null>(null);
 
+  const formatPhoneNumber = (input: string): string => {
+    const digits = input.replace(/\D/g, '');
+    if (!digits) return '';
+    const hasCountryCode = digits.startsWith('1') && digits.length > 10;
+    const national = hasCountryCode ? digits.slice(1) : digits;
+    const prefix = hasCountryCode ? '+1 ' : '';
+    if (national.length <= 3) return prefix + national;
+    if (national.length <= 6) return `${prefix}(${national.slice(0, 3)}) ${national.slice(3)}`;
+    return `${prefix}(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6, 10)}`;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setFormData(prev => ({ ...prev, phoneNumber: formatted }));
+    if (submitError) setSubmitError("");
+    if (errors.phoneNumber) {
+      setErrors(prev => { const n = { ...prev }; delete n.phoneNumber; return n; });
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     const parsed =
       type === "number" ? (value === "" ? 0 : Number(value)) : value;
     setFormData(prev => ({ ...prev, [name]: parsed }));
     if (submitError) setSubmitError("");
-    // Clear error when user types
-    if (errors[name]) {
+    if (name === "professionalEmail") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!value.trim()) {
+        setErrors(prev => { const n = { ...prev }; delete n.professionalEmail; return n; });
+      } else if (!emailRegex.test(value)) {
+        setErrors(prev => ({ ...prev, professionalEmail: "Invalid email" }));
+      } else {
+        setErrors(prev => { const n = { ...prev }; delete n.professionalEmail; return n; });
+      }
+    } else if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[name];
@@ -298,11 +326,11 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
         <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 ml-0.5 mb-1 block">Phone</label>
         <div className="relative">
           <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/70" />
-          <Input 
-            name="phoneNumber" 
-            value={formData.phoneNumber} 
-            onChange={handleInputChange} 
-            placeholder="+1 555..." 
+          <Input
+            name="phoneNumber"
+            value={formData.phoneNumber}
+            onChange={handlePhoneChange}
+            placeholder="(555) 555-0100"
             className={cn(
               "h-9 pl-8 bg-background/50 text-sm focus-visible:ring-1 transition-all",
               errors.phoneNumber && "border-destructive focus-visible:ring-destructive"
@@ -519,6 +547,8 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
             <div><p className="text-muted-foreground scale-90 origin-left">Name</p><p className="font-semibold truncate">{formData.firstName} {formData.lastName}</p></div>
             <div><p className="text-muted-foreground scale-90 origin-left">License</p><p className="font-semibold truncate">{formData.licenseNumber}</p></div>
             <div className="col-span-2"><p className="text-muted-foreground scale-90 origin-left">Business</p><p className="font-semibold truncate">{formData.businessName}</p></div>
+            <div><p className="text-muted-foreground scale-90 origin-left">Phone</p><p className="font-semibold truncate">{formData.phoneNumber}</p></div>
+            <div><p className="text-muted-foreground scale-90 origin-left">Email</p><p className="font-semibold truncate">{formData.professionalEmail}</p></div>
           </div>
         </div>
 
