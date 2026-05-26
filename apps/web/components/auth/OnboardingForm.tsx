@@ -159,11 +159,11 @@ export default function OnboardingForm({ onComplete }: OnboardingFormProps): Rea
       // Calendly no longer mandatory
       if (formData.yearsInBusiness < 0) newErrors.yearsInBusiness = "Cannot be negative";
       
-      const phoneRegex = /^\+?[\d\s-]{10,}$/;
+      const phoneDigits = formData.phoneNumber.replace(/\D/g, '');
       if (!formData.phoneNumber.trim()) {
         newErrors.phoneNumber = "Required";
-      } else if (!phoneRegex.test(formData.phoneNumber)) {
-        newErrors.phoneNumber = "Invalid format";
+      } else if (phoneDigits.length < 10) {
+        newErrors.phoneNumber = "Too short";
       }
 
       if (!formData.professionalEmail.trim()) {
